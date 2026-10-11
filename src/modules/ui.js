@@ -985,6 +985,8 @@ export class UIController {
         }
       });
     }
+
+    this.initValidationTool();
   }
 
   openDetailsModal() {
@@ -1094,15 +1096,20 @@ export class UIController {
   /**
    * Show friendly Quick Check-in Result card (rounded BPM / range, plain label "Estimate", confidence Good/Fair)
    */
-  showCheckinResult({ bpm, range, confidence = 'Good', comparison, isClearReading = true, onTakeReset }) {
+  showCheckinResult({ bpm, range, confidence = 'Good', comparison, isClearReading = true, reasonCode, onTakeReset, onTryAgain }) {
     if (!this.checkinResultModal) return;
     this.checkinResultModal.style.display = 'flex';
+    this.latestCheckinMeasuredBpm = bpm;
 
     const clearBox = document.getElementById('checkin-result-clear-box');
     const unclearBox = document.getElementById('checkin-result-unclear-box');
     const badgeEl = document.getElementById('checkin-result-conf-badge');
     const headlineEl = document.getElementById('checkin-result-bpm-headline');
+    const rangeEl = document.getElementById('checkin-result-range');
     const compEl = document.getElementById('checkin-result-comparison');
+    const unclearReason = document.getElementById('checkin-result-unclear-reason');
+    const unclearAdvice = document.getElementById('checkin-result-unclear-advice');
+    const btnTryAgain = document.getElementById('btn-result-try-again');
     const resetOffer = document.getElementById('checkin-result-reset-offer');
 
     if (badgeEl) {
@@ -1117,18 +1124,74 @@ export class UIController {
         const roundedBpm = Math.round(bpm);
         headlineEl.textContent = `About ${roundedBpm} beats per minute`;
       }
+      if (rangeEl) {
+        if (range && typeof range === 'object' && range.min !== undefined && range.max !== undefined) {
+          rangeEl.textContent = `Range: ${range.min}–${range.max} bpm`;
+          rangeEl.style.display = 'inline-flex';
+        } else if (typeof range === 'string') {
+          rangeEl.textContent = `Range: ${range} bpm`;
+          rangeEl.style.display = 'inline-flex';
+        } else {
+          rangeEl.textContent = `Range: ${Math.round(bpm) - 2}–${Math.round(bpm) + 2} bpm`;
+          rangeEl.style.display = 'inline-flex';
+        }
+      }
       if (compEl) {
         compEl.textContent = comparison || 'Right around your usual';
       }
     } else {
       if (clearBox) clearBox.style.display = 'none';
       if (unclearBox) unclearBox.style.display = 'block';
+
+      let reason = "We couldn't get a clear reading this time.";
+      let advice = "Camera-based estimates can be off by a few beats. Try staying very still under steady light.";
+
+      switch (reasonCode) {
+        case 'TOO_MUCH_MOVEMENT':
+          reason = "Try to stay still during the check-in.";
+          advice = "Subtle head motion can overpower the delicate optical pulse signal.";
+          break;
+        case 'TOO_DARK':
+          reason = "A bit more light on your face, please.";
+          advice = "The camera sensor needs more illumination to detect capillary blood flow.";
+          break;
+        case 'TOO_BRIGHT':
+        case 'SATURATED':
+          reason = "Your screen is very bright for this camera. Lean back a little or lower the brightness slightly.";
+          advice = "Screen glare saturated camera pixels and masked capillary blood absorption.";
+          break;
+        case 'FACE_NOT_FOUND':
+        case 'POOR_ALIGNMENT':
+          reason = "Face was partly hidden or turned away.";
+          advice = "Keep your face centered inside the oval guide throughout the measurement.";
+          break;
+        case 'LOW_FPS':
+          reason = "Camera frame rate was too low.";
+          advice = "The video stream dropped below the minimum rate required for optical pulse analysis.";
+          break;
+        case 'LOW_SNR':
+        case 'INSUFFICIENT_WINDOW':
+        default:
+          reason = "Pulse signal was too faint.";
+          advice = "Try staying very still under steady lighting and run a fresh check-in.";
+          break;
+      }
+
+      if (unclearReason) unclearReason.textContent = reason;
+      if (unclearAdvice) unclearAdvice.textContent = advice;
+
+      if (btnTryAgain) {
+        btnTryAgain.onclick = () => {
+          this.closeCheckinResult();
+          if (onTryAgain) onTryAgain();
+        };
+      }
     }
 
     if (resetOffer) {
       if (onTakeReset) {
         resetOffer.style.display = 'block';
-        const btnReset = document.getElementById('btn-checkin-take-reset');
+        const btnReset = document.getElementById('btn-result-take-reset');
         if (btnReset) {
           btnReset.onclick = () => {
             this.closeCheckinResult();
@@ -1527,6 +1590,272 @@ export class UIController {
       const isCheckin = window.__pulsecam_app?.isQuickCheckin || false;
       diagBadge.textContent = isCheckin ? 'Check-in Active' : 'Camera Stream Active';
       diagBadge.className = `stamp-tag ${isCheckin ? 'good' : ''}`;
+    }
+
+    // 7. Section 7: Developer-Only rPPG Telemetry & Spectral Diagnostics
+    const diag = data.rppgDiagnostics || data.rppg?.diagnostics;
+    if (diag) {
+      const badge = document.getElementById('dev-diag-reason-badge');
+      if (badge) {
+        badge.textContent = diag.reasonNoReading || 'NORMAL';
+        badge.className = `stamp-tag ${diag.hasReading ? 'good' : (diag.reasonNoReading === 'STABILIZING' ? 'accent' : 'alert')}`;
+      }
+
+      const fpsJitter = document.getElementById('dev-diag-fps-jitter');
+      if (fpsJitter) {
+        const fps = (diag.fps || 0).toFixed(1);
+        const jitter = (diag.timestampJitterMs || 0).toFixed(1);
+        fpsJitter.textContent = `${fps} fps / ${jitter} ms`;
+      }
+
+      const rxRate = document.getElementById('dev-diag-rx-rate');
+      if (rxRate) {
+        rxRate.textContent = `${(diag.framesReceivedPerSec || 0).toFixed(1)} /s`;
+      }
+
+      const excludedFrac = document.getElementById('dev-diag-excluded-frac');
+      if (excludedFrac) {
+        const pct = Math.round((diag.framesExcludedFraction || 0) * 100);
+        excludedFrac.textContent = `${pct}%`;
+        excludedFrac.style.color = pct > 25 ? 'var(--alert)' : pct > 10 ? 'var(--caution)' : 'var(--text)';
+      }
+
+      const excludedReason = document.getElementById('dev-diag-excluded-reason');
+      if (excludedReason) {
+        excludedReason.textContent = diag.exclusionReason || 'None';
+      }
+
+      const brightness = document.getElementById('dev-diag-brightness');
+      if (brightness) {
+        brightness.textContent = `${Math.round(diag.meanFaceBrightness || 0)} / 255`;
+      }
+
+      const snr = document.getElementById('dev-diag-snr');
+      if (snr) {
+        const snrVal = (diag.snrDb || 0).toFixed(1);
+        snr.textContent = `${snrVal} dB`;
+        snr.style.color = (diag.snrDb >= 4.5) ? 'var(--good)' : (diag.snrDb >= 1.5) ? 'var(--caution)' : 'var(--alert)';
+      }
+
+      // Per-ROI metrics
+      if (diag.roiStats) {
+        const fhEl = document.getElementById('dev-diag-roi-fh');
+        if (fhEl && diag.roiStats.forehead) {
+          const satPct = (diag.roiStats.forehead.saturationPct * 100).toFixed(1);
+          fhEl.textContent = `${diag.roiStats.forehead.pixelCount} px (${satPct}% sat)`;
+        }
+        const lcEl = document.getElementById('dev-diag-roi-lc');
+        if (lcEl && diag.roiStats.leftCheek) {
+          const satPct = (diag.roiStats.leftCheek.saturationPct * 100).toFixed(1);
+          lcEl.textContent = `${diag.roiStats.leftCheek.pixelCount} px (${satPct}% sat)`;
+        }
+        const rcEl = document.getElementById('dev-diag-roi-rc');
+        if (rcEl && diag.roiStats.rightCheek) {
+          const satPct = (diag.roiStats.rightCheek.saturationPct * 100).toFixed(1);
+          rcEl.textContent = `${diag.roiStats.rightCheek.pixelCount} px (${satPct}% sat)`;
+        }
+      }
+
+      // Waveform Oscilloscope Canvas
+      this.drawDevWaveforms(diag.rawWaveform, diag.filteredWaveform);
+
+      // Welch Power Spectrum Canvas
+      this.drawDevPowerSpectrum(diag.spectrum, diag.peakBpm, diag.peakFreq);
+    }
+  }
+
+  drawDevWaveforms(rawWave, filtWave) {
+    const canvas = document.getElementById('dev-diag-wave-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    // Center guideline
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, h / 2);
+    ctx.lineTo(w, h / 2);
+    ctx.stroke();
+
+    // Raw waveform (gray trace)
+    if (rawWave && rawWave.length > 1) {
+      const minR = Math.min(...rawWave);
+      const maxR = Math.max(...rawWave);
+      const rangeR = maxR - minR || 1;
+      ctx.strokeStyle = 'rgba(180, 170, 160, 0.45)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      const step = w / (rawWave.length - 1);
+      for (let i = 0; i < rawWave.length; i++) {
+        const x = i * step;
+        const norm = (rawWave[i] - minR) / rangeR;
+        const y = h - (norm * (h - 16) + 8);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+
+    // Filtered waveform (red / accent trace)
+    if (filtWave && filtWave.length > 1) {
+      const minF = Math.min(...filtWave);
+      const maxF = Math.max(...filtWave);
+      const rangeF = maxF - minF || 1;
+      ctx.strokeStyle = '#b23a2e';
+      ctx.lineWidth = 2.0;
+      ctx.beginPath();
+      const step = w / (filtWave.length - 1);
+      for (let i = 0; i < filtWave.length; i++) {
+        const x = i * step;
+        const norm = (filtWave[i] - minF) / rangeF;
+        const y = h - (norm * (h - 16) + 8);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+    }
+  }
+
+  drawDevPowerSpectrum(spectrum, peakBpm, peakFreq) {
+    const canvas = document.getElementById('dev-diag-spec-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
+    ctx.clearRect(0, 0, w, h);
+
+    const peakMeta = document.getElementById('dev-diag-peak-meta');
+    if (peakMeta) {
+      peakMeta.textContent = peakBpm ? `Peak: ${peakBpm.toFixed(1)} bpm (${(peakFreq || 0).toFixed(2)} Hz)` : 'Peak: -- bpm';
+    }
+
+    if (!spectrum || spectrum.length === 0) return;
+
+    let maxP = 0;
+    for (let i = 0; i < spectrum.length; i++) {
+      if (spectrum[i].power > maxP) maxP = spectrum[i].power;
+    }
+    if (maxP <= 0) maxP = 1;
+
+    const minFreq = 0.7;
+    const maxFreq = 3.0;
+
+    ctx.fillStyle = 'rgba(178, 58, 46, 0.2)';
+    ctx.strokeStyle = '#b23a2e';
+    ctx.lineWidth = 1.8;
+    ctx.beginPath();
+    ctx.moveTo(0, h);
+
+    for (let i = 0; i < spectrum.length; i++) {
+      const f = spectrum[i].freq;
+      const x = ((f - minFreq) / (maxFreq - minFreq)) * w;
+      const y = h - (spectrum[i].power / maxP) * (h - 12);
+      if (i === 0) ctx.lineTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.lineTo(w, h);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    if (peakFreq && peakFreq >= minFreq && peakFreq <= maxFreq) {
+      const peakX = ((peakFreq - minFreq) / (maxFreq - minFreq)) * w;
+      ctx.strokeStyle = '#2f6b4f';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([4, 3]);
+      ctx.beginPath();
+      ctx.moveTo(peakX, 0);
+      ctx.lineTo(peakX, h);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = '#2f6b4f';
+      ctx.font = '10px monospace';
+      ctx.fillText(`${(peakBpm || 0).toFixed(0)} bpm`, Math.min(w - 55, peakX + 4), 14);
+    }
+  }
+
+  initValidationTool() {
+    const btnLog = document.getElementById('btn-dev-log-val');
+    const btnClear = document.getElementById('btn-dev-clear-val');
+    const inputRef = document.getElementById('dev-val-ref-bpm');
+
+    if (btnLog) {
+      btnLog.onclick = () => {
+        const refVal = parseFloat(inputRef ? inputRef.value : '');
+        if (isNaN(refVal) || refVal < 30 || refVal > 220) {
+          alert('Please enter a valid reference BPM between 30 and 220.');
+          return;
+        }
+        const measured = this.latestCheckinMeasuredBpm || (window.__pulsecam_app?.smoothBPM?.current ?? 72);
+        this.addValidationEntry(refVal, measured);
+      };
+    }
+
+    if (btnClear) {
+      btnClear.onclick = () => {
+        localStorage.removeItem('pulsecam_val_log');
+        this.renderValidationLog();
+      };
+    }
+
+    this.renderValidationLog();
+  }
+
+  addValidationEntry(referenceBpm, measuredBpm) {
+    const error = Math.abs(measuredBpm - referenceBpm);
+    const entry = {
+      timestamp: Date.now(),
+      ref: Math.round(referenceBpm),
+      measured: Math.round(measuredBpm),
+      error: Number(error.toFixed(1))
+    };
+
+    let log = [];
+    try {
+      log = JSON.parse(localStorage.getItem('pulsecam_val_log') || '[]');
+    } catch (_) {}
+    log.unshift(entry);
+    if (log.length > 50) log = log.slice(0, 50);
+    localStorage.setItem('pulsecam_val_log', JSON.stringify(log));
+
+    this.renderValidationLog();
+  }
+
+  renderValidationLog() {
+    let log = [];
+    try {
+      log = JSON.parse(localStorage.getItem('pulsecam_val_log') || '[]');
+    } catch (_) {}
+
+    const countEl = document.getElementById('dev-val-count');
+    const maeEl = document.getElementById('dev-val-mae');
+    const listEl = document.getElementById('dev-val-log-list');
+
+    if (countEl) countEl.textContent = `${log.length} test${log.length === 1 ? '' : 's'}`;
+
+    if (log.length > 0) {
+      const sumErr = log.reduce((acc, item) => acc + item.error, 0);
+      const mae = (sumErr / log.length).toFixed(1);
+      if (maeEl) maeEl.textContent = `${mae} bpm`;
+    } else {
+      if (maeEl) maeEl.textContent = '-- bpm';
+    }
+
+    if (listEl) {
+      if (log.length === 0) {
+        listEl.innerHTML = '<div style="color: var(--text-muted); font-size: 0.75rem;">No validation entries logged yet.</div>';
+      } else {
+        listEl.innerHTML = log.map((item, idx) => `
+          <div style="display: flex; justify-content: space-between; border-bottom: 1px dashed var(--line); padding: 2px 0;">
+            <span>#${log.length - idx} Ref: ${item.ref} | Measured: ${item.measured}</span>
+            <strong style="color: ${item.error <= 3 ? 'var(--good)' : item.error <= 6 ? 'var(--caution)' : 'var(--alert)'};">Err: ${item.error} bpm</strong>
+          </div>
+        `).join('');
+      }
     }
   }
 

@@ -210,6 +210,8 @@ class PulseCamApp {
           this.targetConfidence = data.rppg.confidence || 0;
           if (data.rppg.hrv !== null) this.targetHRV = data.rppg.hrv;
           if (data.rppg.waveform !== undefined) this.targetWaveform = data.rppg.waveform;
+          if (data.rppg.diagnostics) this.latestRppgDiagnostics = data.rppg.diagnostics;
+          this.latestRppg = data.rppg;
         }
 
         if (data.blink) {
@@ -277,6 +279,12 @@ class PulseCamApp {
           headPose: data.headPose,
           motion: data.motion
         };
+      } else if (type === 'CHECKIN_RESULT') {
+        this.latestCheckinResult = e.data.result;
+        if (this.onCheckinResultResolve) {
+          this.onCheckinResultResolve(e.data.result);
+          this.onCheckinResultResolve = null;
+        }
       } else if (type === 'BACKGROUND_LOW_FPS') {
         console.warn(`[PulseCam] Background monitoring: frame delivery dropped below 10 fps (${e.data.fps} fps). Consider checking system power settings or browser background throttling.`);
       }
@@ -617,9 +625,9 @@ class PulseCamApp {
     this.worker.postMessage({ type: 'RESET_CHECKIN' });
     this.worker.postMessage({ type: 'SET_CHECKIN_MODE', active: true });
 
-    // 3. Request Screen Wake Lock & lock camera constraints if supported
+    // 3. Request Screen Wake Lock (exposure lock will settle after 2s if brightness is healthy)
     this.requestWakeLock();
-    this.camera.lockCameraConstraints();
+    this.checkinExposureLocked = false;
 
     // 4. Enter fullscreen or fall back gracefully to full-window white overlay
     this.ui.setQuickCheckinActive(true);
@@ -740,6 +748,7 @@ class PulseCamApp {
     this.isQuickCheckin = false;
 
     this.cleanupCheckinListeners();
+    this.worker.postMessage({ type: 'GET_CHECKIN_RESULT' });
     this.worker.postMessage({ type: 'SET_CHECKIN_MODE', active: false });
     this.camera.unlockCameraConstraints();
     this.releaseWakeLock();
@@ -747,99 +756,110 @@ class PulseCamApp {
     this.ui.setQuickCheckinActive(false);
     this.ui.updateCheckinLivePulse(null);
 
-    const curBpm = this.smoothBPM.current;
-    const rppgConf = this.targetConfidence !== undefined ? this.targetConfidence : 80;
-    const fatigue = Math.round(this.smoothFatigue.current);
-    const perclos = this.smoothPERCLOS.current;
-    const baseBpm = this.activeBaseline?.heartRate?.mean ? Math.round(this.activeBaseline.heartRate.mean) : 72;
+    const displayResult = (res) => {
+      const curBpm = (res && res.medianBpm) ? res.medianBpm : this.smoothBPM.current;
+      const fatigue = Math.round(this.smoothFatigue.current);
+      const perclos = this.smoothPERCLOS.current;
+      const baseBpm = this.activeBaseline?.heartRate?.mean ? Math.round(this.activeBaseline.heartRate.mean) : 72;
 
-    const isSignalReliable = (rppgConf >= 40 || this.checkinForceContinue) && curBpm > 45 && curBpm < 185;
-    const confWord = this.checkinForceContinue ? 'Fair' : (rppgConf >= 68 ? 'Good' : 'Fair');
+      let comparison = 'Right around your usual';
+      if (curBpm > baseBpm + 4) {
+        comparison = 'A little higher than your usual';
+      } else if (curBpm < baseBpm - 4) {
+        comparison = 'A little lower than usual';
+      }
 
-    let comparison = 'Right around your usual';
-    if (curBpm > baseBpm + 4) {
-      comparison = 'A little higher than your usual';
-    } else if (curBpm < baseBpm - 4) {
-      comparison = 'A little lower than usual';
-    }
+      if (res && res.hasReading && res.medianBpm > 42 && res.medianBpm < 185) {
+        const roundedBpm = Math.round(res.medianBpm);
+        const isElevated = fatigue > 60 || curBpm > baseBpm + 8;
 
-    if (isSignalReliable) {
-      const roundedBpm = Math.round(curBpm);
-      const isElevated = fatigue > 60 || curBpm > baseBpm + 8;
+        this.ui.showCheckinResult({
+          bpm: roundedBpm,
+          range: res.range || { min: roundedBpm - 2, max: roundedBpm + 2 },
+          confidence: res.confidence || 'Good',
+          comparison,
+          isClearReading: true,
+          onTakeReset: isElevated ? () => {
+            this.ui.openResetBreak({
+              initialBpm: roundedBpm,
+              onFinishComparison: () => this.smoothBPM.current
+            });
+          } : null
+        });
 
-      this.ui.showCheckinResult({
-        bpm: roundedBpm,
-        range: `${roundedBpm - 2}-${roundedBpm + 2}`,
-        confidence: confWord,
-        comparison,
-        isClearReading: true,
-        onTakeReset: isElevated ? () => {
-          this.ui.openResetBreak({
-            initialBpm: roundedBpm,
-            onFinishComparison: () => this.smoothBPM.current
-          });
-        } : null
-      });
+        // Save to local device history
+        this.ui.saveCheckinEntry({
+          id: Date.now().toString(),
+          timestamp: Date.now(),
+          bpm: roundedBpm,
+          confidence: res.confidence || 'Good',
+          comparison
+        });
+      } else {
+        // Honest specific reason display (Phase 5)
+        const code = res?.reasonCode || (this.latestRppgDiagnostics?.reasonNoReading || 'LOW_SNR');
+        this.ui.showCheckinResult({
+          bpm: null,
+          confidence: 'Fair',
+          isClearReading: false,
+          reasonCode: code,
+          onTryAgain: () => this.startQuickCheckin()
+        });
+      }
 
-      // Save to local device history
-      this.ui.saveCheckinEntry({
-        id: Date.now().toString(),
-        timestamp: Date.now(),
-        bpm: roundedBpm,
-        confidence: confWord,
-        comparison
-      });
+      // Update main UI headline calmly
+      let headline = "You seem calm and focused";
+      let supporting = "Check-in complete. Heart rhythm is steady and visual focus is balanced.";
+      let action = "Keep going";
+      let state = "calm";
+
+      if (fatigue > 65 || perclos > 20) {
+        headline = "You've been pushing hard, take a break";
+        supporting = "Check-in complete. We noticed elevated fatigue in your heart rhythm and eyes.";
+        action = "Take a 2-minute break";
+        state = "tired";
+      } else if (fatigue >= 35 || perclos > 13) {
+        headline = "Time to rest your eyes soon";
+        supporting = "Check-in complete. Subtle eye fatigue detected during your check-in.";
+        action = "Look away for 20 seconds";
+        state = "busy";
+      }
+
+      if (this.ui.humanStatusHeadline) {
+        this.ui.humanStatusHeadline.textContent = headline;
+        this.ui.humanStatusHeadline.className = `human-status-headline state-${state}`;
+      }
+      if (this.ui.humanSupportingText) {
+        this.ui.humanSupportingText.textContent = supporting;
+      }
+      if (this.ui.suggestedActionLabel) {
+        this.ui.suggestedActionLabel.textContent = action;
+        this.ui.currentSuggestedAction = action;
+      }
+
+      this.sessionTimeSplit[state === 'tired' ? 'tiredSec' : state === 'busy' ? 'busySec' : 'calmSec'] += 60;
+      this.ui.updateDaySummary(this.sessionTimeSplit);
+
+      this.lastCheckinTime = Date.now();
+      this.lastCheckinFatigue = fatigue;
+      this.checkinState = 'IDLE';
+      this.updatePipState();
+
+      this.ui.showToast('✨', '60-second check-in complete! Result updated.');
+    };
+
+    if (this.latestCheckinResult) {
+      displayResult(this.latestCheckinResult);
     } else {
-      // Inconclusive reading
-      this.ui.showCheckinResult({
-        bpm: null,
-        confidence: 'Fair',
-        isClearReading: false
-      });
+      this.onCheckinResultResolve = (res) => displayResult(res);
+      setTimeout(() => {
+        if (this.onCheckinResultResolve) {
+          this.onCheckinResultResolve(this.latestCheckinResult);
+          this.onCheckinResultResolve = null;
+        }
+      }, 150);
     }
-
-    // Update main UI headline calmly
-    let headline = "You seem calm and focused";
-    let supporting = "Check-in complete. Heart rhythm is steady and visual focus is balanced.";
-    let action = "Keep going";
-    let state = "calm";
-
-    if (fatigue > 65 || perclos > 20) {
-      headline = "You've been pushing hard, take a break";
-      supporting = "Check-in complete. We noticed elevated fatigue in your heart rhythm and eyes.";
-      action = "Take a 2-minute break";
-      state = "tired";
-    } else if (fatigue >= 35 || perclos > 13) {
-      headline = "Time to rest your eyes soon";
-      supporting = "Check-in complete. Subtle eye fatigue detected during your check-in.";
-      action = "Look away for 20 seconds";
-      state = "busy";
-    }
-
-    if (this.ui.humanStatusHeadline) {
-      this.ui.humanStatusHeadline.textContent = headline;
-      this.ui.humanStatusHeadline.className = `human-status-headline state-${state}`;
-    }
-    if (this.ui.humanSupportingText) {
-      this.ui.humanSupportingText.textContent = supporting;
-    }
-    if (this.ui.suggestedActionLabel) {
-      this.ui.suggestedActionLabel.textContent = action;
-      this.ui.currentSuggestedAction = action;
-    }
-
-    // Accumulate 60 seconds into session day summary
-    this.sessionTimeSplit[state === 'tired' ? 'tiredSec' : state === 'busy' ? 'busySec' : 'calmSec'] += 60;
-    this.ui.updateDaySummary(this.sessionTimeSplit);
-
-    this.lastCheckinTime = Date.now();
-    this.lastCheckinFatigue = fatigue;
-    this.checkinState = 'IDLE';
-    this.updatePipState();
-
-    this.ui.showToast('✨', '60-second check-in complete! Result updated.');
   }
-
 
   /**
    * Populate "For the curious" technical details modal with current telemetry snapshot
@@ -864,7 +884,8 @@ class PulseCamApp {
       zScores: this.latestZScores,
       heuristics: this.latestHeuristics,
       workloadScore: Math.round(this.smoothFatigue.current),
-      blink: this.latestBlink
+      blink: this.latestBlink,
+      rppgDiagnostics: this.latestRppgDiagnostics || this.latestRppg?.diagnostics
     });
   }
 
@@ -946,6 +967,7 @@ class PulseCamApp {
       this.ui.showView('dashboard');
       this.isMonitoring = true;
       this.isPaused = false;
+      this.initVideoFrameCallback();
 
       // Run 3-second lighting-quality check before any measurement starts
       this.startPreflightCheck();
@@ -1422,6 +1444,13 @@ class PulseCamApp {
             this.checkinState = 'MEASURING';
             this.checkinMeasurementStartTime = performance.now();
             this.worker.postMessage({ type: 'RESET_CHECKIN' });
+
+            // Exposure: let auto-exposure settle for 2 seconds, then lock only if face brightness is in healthy range (90-180)
+            const faceBrightness = this.latestRppgDiagnostics?.meanFaceBrightness ?? (this.latestLighting?.meanLuminance ?? 100);
+            if (faceBrightness >= 90 && faceBrightness <= 180) {
+              this.camera.lockCameraConstraints();
+              this.checkinExposureLocked = true;
+            }
           }
         } else if (this.checkinState === 'MEASURING') {
           const elapsed = now - this.checkinMeasurementStartTime;
@@ -1450,7 +1479,15 @@ class PulseCamApp {
             isGoodDistance = !isTooFar && !isTooClose;
             isFacingScreen = Math.abs(pose.yaw) <= 14 && Math.abs(pose.pitch) <= 16;
 
-            const faceLum = this.latestLighting ? this.latestLighting.meanLuminance : 60;
+            const faceLum = this.latestRppgDiagnostics?.meanFaceBrightness ?? (this.latestLighting ? this.latestLighting.meanLuminance : 60);
+
+            // Per-ROI saturation check (Phase 2)
+            const roiStats = this.latestRppgDiagnostics?.roiStats;
+            let avgSat = 0;
+            if (roiStats) {
+              const satTotal = (roiStats.forehead?.saturationPct || 0) + (roiStats.leftCheek?.saturationPct || 0) + (roiStats.rightCheek?.saturationPct || 0);
+              avgSat = satTotal / 3;
+            }
 
             if (!isCentered) {
               guidanceText = "Center your face";
@@ -1460,10 +1497,16 @@ class PulseCamApp {
               guidanceText = "Move back a bit";
             } else if (!isFacingScreen) {
               guidanceText = "Look straight at the screen";
-            } else if (faceLum < 28) {
-              guidanceText = "A bit more light on your face";
+            } else if (avgSat > 0.05) {
+              guidanceText = "Your screen is very bright for this camera. Lean back a little or lower the brightness slightly.";
+            } else if (faceLum < 70) {
+              guidanceText = "A bit more light on your face, please.";
             } else if (!isStill) {
               guidanceText = "Hold still";
+            } else if (elapsed < 12000) {
+              // Phase 5: First 12 seconds calm countdown progress with alignment oval, never blank screen
+              const secLeft = Math.max(1, Math.ceil((12000 - elapsed) / 1000));
+              guidanceText = `Measuring... ${secLeft}s`;
             } else {
               guidanceText = "Hold still";
             }
@@ -1572,11 +1615,26 @@ class PulseCamApp {
   }
 
   /**
+   * Hardware frame presentation callback for accurate frame timestamps and jitter analysis
+   */
+  initVideoFrameCallback() {
+    if (!this.camera.video || typeof this.camera.video.requestVideoFrameCallback !== 'function') return;
+    const onFrame = (now, metadata) => {
+      if (this.camera.isRunning) {
+        this.lastHardwareTimestamp = metadata?.presentationTime || now;
+        this.camera.video.requestVideoFrameCallback(onFrame);
+      }
+    };
+    this.camera.video.requestVideoFrameCallback(onFrame);
+  }
+
+  /**
    * Transfer video frame as zero-copy ImageBitmap to Web Worker
    */
   dispatchFrameToWorker(timestamp) {
     if (!this.camera.video || !this.camera.isRunning || this.isWorkerBusy) return;
 
+    const frameTimestamp = this.lastHardwareTimestamp || timestamp;
     this.isWorkerBusy = true;
     createImageBitmap(this.camera.video)
       .then((bitmap) => {
@@ -1591,7 +1649,7 @@ class PulseCamApp {
           {
             type: 'PROCESS_FRAME',
             bitmap,
-            timestamp,
+            timestamp: frameTimestamp,
             width: this.camera.width,
             height: this.camera.height,
             isDemo: Boolean(this.isDemoSession)

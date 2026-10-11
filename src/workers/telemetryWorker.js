@@ -313,8 +313,9 @@ async function executeFrame(frameSource, isVideoFrame, timestamp, width, height,
   // "Only pass a frame to the pulse pipeline if movement is below a threshold; mark other frames as "noisy" and discard them."
   const isFrameNoisy = Boolean(motionResult && motionResult.isNoisy);
   const isFrameDiscarded = Boolean(motionResult && motionResult.isDiscarded);
-  const canMeasure = Boolean(faceDetected && isMeasurementActive && lightingResult.isValid);
-  const canPassToPulse = Boolean(canMeasure && !isFrameNoisy);
+  // Continuous acquisition: isCheckinMode immediately enables measurement; rppg engine internally scores SNR and rejects window if corrupted
+  const canMeasure = Boolean(faceDetected && (isMeasurementActive || isCheckinMode));
+  const canPassToPulse = Boolean(canMeasure);
 
   let rppgResult = null;
   let blinkResult = null;
@@ -350,17 +351,10 @@ async function executeFrame(frameSource, isVideoFrame, timestamp, width, height,
         }
       : null);
 
-  if (canPassToPulse && (isCheckinMode || calibration.isCalibrating)) {
-    // Frame passed: movement is below threshold, optical skin viable
-    // Pass pooled ROIs (forehead + left cheek + right cheek) and background reference ROI to rPPG
-    rppgResult = rppg.processFrame(offscreenCtx, rois, timestamp, bgRoi);
+  if (canPassToPulse && (isCheckinMode || calibration.isCalibrating || isMeasurementActive)) {
+    // Continuous pulse extraction across multi-ROI skin buffers with motion weighting
+    rppgResult = rppg.processFrame(offscreenCtx, rois, timestamp, bgRoi, motionResult);
     blinkResult = blink.process(landmarks, timestamp, calibContext);
-
-    // If 10s window has >40% discarded frames, penalize rPPG confidence
-    if (motionResult && motionResult.windowStability && motionResult.windowStability.isLowConfidence && rppgResult) {
-      rppgResult.confidence = Math.min(30, Math.round((rppgResult.confidence || 0) * 0.45));
-      rppgResult.isWindowLowConfidence = true;
-    }
 
     sqiResult = sqiAssessor.evaluate({
       faceDetection: faceDetectionObj,
@@ -513,9 +507,21 @@ async function executeFrame(frameSource, isVideoFrame, timestamp, width, height,
           waveform: rppgResult.waveform,
           isPulsing: rppgResult.isPulsing,
           isWindowLowConfidence: rppgResult.isWindowLowConfidence || false,
-          illumination: rppgResult.illumination || null
+          illumination: rppgResult.illumination || null,
+          diagnostics: rppgResult.diagnostics || rppg.diagnostics
         }
-      : null,
+      : (isCheckinMode
+        ? {
+            bpm: null,
+            rawBpm: null,
+            confidence: 0,
+            snrDb: 0,
+            hrv: null,
+            waveform: 0,
+            isPulsing: false,
+            diagnostics: rppg.diagnostics
+          }
+        : null),
     blink: blinkResult
       ? {
           ear: blinkResult.ear,
@@ -582,7 +588,10 @@ async function startTrackReader(readable, streamWidth, streamHeight) {
       const { done, value: videoFrame } = await trackReader.read();
       if (done || !videoFrame) break;
 
-      const ts = performance.now();
+      // Real hardware frame timestamp from VideoFrame where supported
+      const ts = (videoFrame.timestamp && videoFrame.timestamp > 0)
+        ? videoFrame.timestamp / 1000
+        : performance.now();
 
       // If monitoring is completely stopped or unneeded, free frame and continue
       if (!isMeasurementActive && !isCheckinMode && !calibration.isCalibrating && !bgWatch.isEnabled) {
@@ -658,5 +667,8 @@ self.onmessage = async (event) => {
     blink.reset();
     lighting.resetHistory();
     motionTracker.reset();
+  } else if (type === 'GET_CHECKIN_RESULT') {
+    const checkinRes = rppg.getCheckinFinalResult();
+    self.postMessage({ type: 'CHECKIN_RESULT', result: checkinRes });
   }
 };

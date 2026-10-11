@@ -1050,6 +1050,108 @@
               </div>
             </div>
           </div>
+
+          <!-- Section 7: Developer-Only rPPG Telemetry & Spectral Diagnostics -->
+          <div class="details-section-box" style="margin-top: 14px; border-left: 3px solid var(--accent);">
+            <div class="details-section-header">
+              <span class="details-section-title">7. rPPG Signal & Spectral Diagnostics (Developer)</span>
+              <span id="dev-diag-reason-badge" class="stamp-tag accent">INITIALIZING</span>
+            </div>
+
+            <!-- Diagnostics Metrics Grid -->
+            <div class="details-metrics-grid" style="margin-bottom: 12px;">
+              <div class="details-metric-item">
+                <span class="details-metric-label">Frame Rate & Jitter</span>
+                <strong id="dev-diag-fps-jitter" class="details-metric-val">-- fps / -- ms</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Frames Rx / Sec</span>
+                <strong id="dev-diag-rx-rate" class="details-metric-val">-- /s</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Excluded Fraction</span>
+                <strong id="dev-diag-excluded-frac" class="details-metric-val">0%</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Exclusion Reason</span>
+                <strong id="dev-diag-excluded-reason" class="details-metric-val">None</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Mean Face Brightness</span>
+                <strong id="dev-diag-brightness" class="details-metric-val">-- / 255</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">In-Band SNR</span>
+                <strong id="dev-diag-snr" class="details-metric-val">-- dB</strong>
+              </div>
+            </div>
+
+            <!-- Per-ROI Pixel Count & Saturation Table -->
+            <div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 10px 14px; margin-bottom: 12px;">
+              <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px;">
+                Per-ROI Skin Sampled Pixels & Saturation
+              </div>
+              <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; font-size: 0.8rem; font-family: var(--font-mono);">
+                <div>
+                  <span style="color: var(--text-muted);">Forehead:</span>
+                  <strong id="dev-diag-roi-fh" style="color: var(--text);">-- px (0%)</strong>
+                </div>
+                <div>
+                  <span style="color: var(--text-muted);">L-Cheek:</span>
+                  <strong id="dev-diag-roi-lc" style="color: var(--text);">-- px (0%)</strong>
+                </div>
+                <div>
+                  <span style="color: var(--text-muted);">R-Cheek:</span>
+                  <strong id="dev-diag-roi-rc" style="color: var(--text);">-- px (0%)</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- Pulse Waveform Oscilloscope Canvas -->
+            <div style="margin-bottom: 12px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">
+                  Pulse Waveforms (Raw Gray / Filtered Red)
+                </span>
+                <span id="dev-diag-wave-meta" style="font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">--</span>
+              </div>
+              <div style="background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; justify-content: center;">
+                <canvas id="dev-diag-wave-canvas" width="600" height="90" style="width: 100%; height: 90px; display: block;"></canvas>
+              </div>
+            </div>
+
+            <!-- Welch Power Spectrum Canvas with Detected Peak Marker -->
+            <div style="margin-bottom: 14px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                <span style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">
+                  Welch Fused Power Spectrum (0.7 – 3.0 Hz / 42 – 180 bpm)
+                </span>
+                <span id="dev-diag-peak-meta" style="font-size: 0.72rem; color: var(--accent); font-family: var(--font-mono); font-weight: 600;">Peak: -- bpm</span>
+              </div>
+              <div style="background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 4px; display: flex; justify-content: center;">
+                <canvas id="dev-diag-spec-canvas" width="600" height="90" style="width: 100%; height: 90px; display: block;"></canvas>
+              </div>
+            </div>
+
+            <!-- Developer Validation Tool (Smartwatch / Oximeter Ground Truth Error Logger) -->
+            <div style="background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px;">
+              <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 6px;">
+                Ground-Truth Validation Tool (Local MAE Logger)
+              </div>
+              <div style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px;">
+                <input id="dev-val-ref-bpm" type="number" min="40" max="200" placeholder="Ref BPM (e.g. 72)" style="width: 160px; padding: 6px 10px; font-size: 0.82rem; border: 1px solid var(--line); border-radius: 6px; background: var(--bg); color: var(--text);" />
+                <button id="btn-dev-log-val" class="btn btn-secondary btn-sm" type="button">Log Check-in Error</button>
+                <button id="btn-dev-clear-val" class="btn btn-subtle btn-sm" type="button" style="color: var(--alert);">Clear</button>
+              </div>
+              <div style="font-size: 0.8rem; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span>Mean Absolute Error: <strong id="dev-val-mae" style="color: var(--good); font-family: var(--font-mono);">-- bpm</strong></span>
+                <span id="dev-val-count" style="color: var(--text-muted); font-size: 0.75rem;">0 entries</span>
+              </div>
+              <div id="dev-val-log-list" style="max-height: 100px; overflow-y: auto; font-size: 0.75rem; font-family: var(--font-mono); color: var(--text-muted); display: flex; flex-direction: column; gap: 4px;">
+                <!-- Dynamically logged entries -->
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="details-modal-footer" style="margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -1193,20 +1295,29 @@
                 About 74 beats per minute
               </span>
               <span class="stamp-tag">Estimate</span>
+              <span id="checkin-result-range" class="stamp-tag mono" style="font-size: 0.8rem; color: var(--text-muted); background: var(--surface-alt);">
+                Range: 72–76 bpm
+              </span>
             </div>
             <p id="checkin-result-comparison" style="font-size: 1.05rem; color: var(--text); font-weight: 500; margin-bottom: 14px;">
               Right around your usual
             </p>
           </div>
 
-          <!-- Low Confidence / Unclear Reading -->
+          <!-- Low Confidence / Unclear Reading (Phase 5 honest, friendly display) -->
           <div id="checkin-result-unclear-box" style="display: none; padding: 8px 0 14px 0;">
-            <p style="font-size: 1.05rem; color: var(--text); font-weight: 500; margin-bottom: 6px;">
-              We couldn't get a clear reading.
+            <p id="checkin-result-unclear-title" style="font-size: 1.05rem; color: var(--text); font-weight: 500; margin-bottom: 6px;">
+              We couldn't get a clear reading this time.
             </p>
-            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5;">
-              Try again with more light on your face or raise your screen brightness.
+            <p id="checkin-result-unclear-reason" style="font-size: 0.92rem; color: var(--accent); font-weight: 500; margin-bottom: 6px;">
+              Try to stay still during the check-in.
             </p>
+            <p id="checkin-result-unclear-advice" style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;">
+              Subtle head motion can overpower the delicate pulse signal.
+            </p>
+            <button id="btn-result-try-again" class="btn btn-primary btn-sm" type="button">
+              Try again
+            </button>
           </div>
 
           <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
