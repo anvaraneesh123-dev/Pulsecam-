@@ -1,0 +1,58 @@
+/**
+ * PulseCam Design System Tokens
+ * Editorial, handcrafted, tactile aesthetic.
+ */
+
+:root {
+  /* Color Palette */
+  --bg: #FAF7F2;
+  --surface: #FFFFFF;
+  --surface-alt: #F1EADF;
+  --text: #2B1D14;
+  --text-muted: #6B5444;
+  --line: #E2D6C6;
+  --accent: #9B2C2C;
+  --good: #2F6B4F;
+  --caution: #D9A441;
+  --alert: #B23A2E;
+
+  /* Typography */
+  --font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --font-body: 'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
+
+  /* Type Scale */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.35rem;
+  --text-2xl: 1.75rem;
+  --text-3xl: 2.25rem;
+  --text-4xl: 3rem;
+  --text-5xl: 3.85rem;
+
+  /* Letter Spacing */
+  --tracking-tight: -0.035em;
+  --tracking-normal: -0.01em;
+  --tracking-wide: 0.08em;
+  --tracking-widest: 0.16em;
+
+  /* Layout & Geometry */
+  --radius-none: 0px;
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  /* Thin structural hairline */
+  --border-hairline: 1px solid var(--line);
+  --border-accent: 1px solid var(--accent);
+  --border-focus: 1px solid var(--text);
+
+  /* Motion & Easing Curve (Phase 6: cubic-bezier(0.22, 1, 0.36, 1)) */
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-sm: 180ms;
+  --duration-lg: 450ms;
+  --transition-sm: transform var(--duration-sm) var(--ease-editorial), opacity var(--duration-sm) var(--ease-editorial), color var(--duration-sm) var(--ease-editorial), background-color var(--duration-sm) var(--ease-editorial), border-color var(--duration-sm) var(--ease-editorial);
+  --transition-lg: transform var(--duration-lg) var(--ease-editorial), opacity var(--duration-lg) var(--ease-editorial), color var(--duration-lg) var(--ease-editorial), background-color var(--duration-lg) var(--ease-editorial), border-color var(--duration-lg) var(--ease-editorial);
+}

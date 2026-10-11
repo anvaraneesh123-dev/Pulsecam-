@@ -1,0 +1,1534 @@
+import { formatZScore, getZScoreSeverity } from './baselineStore.js';
+
+export class UIController {
+  constructor() {
+    // Views
+    this.viewLanding = document.getElementById('view-landing');
+    this.viewConsent = document.getElementById('view-consent');
+    this.viewDashboard = document.getElementById('view-dashboard');
+
+    // Consent elements
+    this.checkWellness = document.getElementById('consent-check-wellness');
+    this.checkCamera = document.getElementById('consent-check-camera');
+    this.btnConsentProceed = document.getElementById('btn-consent-proceed');
+    this.consentErrorMsg = document.getElementById('consent-error-msg');
+
+    // Dashboard Telemetry Elements
+    this.statusIndicator = document.getElementById('monitoring-status-indicator');
+    this.statusText = document.getElementById('monitoring-status-text');
+    this.timerText = document.getElementById('session-timer-text');
+
+    // Human Wellness Interface Elements
+    this.humanStatusHeadline = document.getElementById('human-status-headline');
+    this.humanStatusPip = document.getElementById('human-status-pip');
+    this.humanStatusTag = document.getElementById('human-status-tag');
+    this.humanSupportingText = document.getElementById('human-supporting-text');
+    this.btnSuggestedAction = document.getElementById('btn-suggested-action');
+    this.suggestedActionLabel = document.getElementById('suggested-action-label');
+    this.humanLowQualityBox = document.getElementById('human-low-quality-box');
+    this.humanLowQualityTitle = document.getElementById('human-low-quality-title');
+    this.humanLowQualitySubtext = document.getElementById('human-low-quality-subtext');
+    this.dayBarCalm = document.getElementById('day-bar-calm');
+    this.dayBarBusy = document.getElementById('day-bar-busy');
+    this.dayBarTired = document.getElementById('day-bar-tired');
+
+    // Action Modal & Toast Elements
+    this.actionModal = document.getElementById('human-action-modal');
+    this.actionModalTitle = document.getElementById('action-modal-title');
+    this.actionModalSubtitle = document.getElementById('action-modal-subtitle');
+    this.actionModalTimer = document.getElementById('action-pacer-timer');
+    this.actionModalPrompt = document.getElementById('action-modal-prompt');
+    this.btnCloseActionModal = document.getElementById('btn-close-action-modal');
+    this.btnActionModalDone = document.getElementById('btn-action-modal-done');
+    this.humanToast = document.getElementById('human-toast');
+    this.humanToastIcon = document.getElementById('human-toast-icon');
+    this.humanToastText = document.getElementById('human-toast-text');
+    this.currentSuggestedAction = 'Keep going';
+    this.actionCountdownInterval = null;
+    this.toastTimeout = null;
+
+    // Settings Modal Elements
+    this.btnOpenSettings = document.getElementById('btn-open-settings');
+    this.settingsModal = document.getElementById('settings-modal');
+    this.btnCloseSettings = document.getElementById('btn-close-settings');
+    this.btnDoneSettings = document.getElementById('btn-done-settings');
+    this.settingSoundChime = document.getElementById('setting-sound-chime');
+    this.btnTestChime = document.getElementById('btn-test-chime');
+    this.settingsSnoozeStatus = document.getElementById('settings-snooze-status');
+    this.btnResumeAlerts = document.getElementById('btn-resume-alerts');
+
+    // "For the curious" Details Modal Elements
+    this.btnOpenDetails = document.getElementById('btn-open-details');
+    this.detailsModal = document.getElementById('details-modal');
+    this.btnCloseDetails = document.getElementById('btn-close-details');
+    this.btnDoneDetails = document.getElementById('btn-done-details');
+    this.isDetailsPanelOpen = false;
+
+    this.detailsSqiBadge = document.getElementById('details-sqi-badge');
+    this.detailsFaceVal = document.getElementById('details-face-val');
+    this.detailsLightingVal = document.getElementById('details-lighting-val');
+    this.detailsMotionVal = document.getElementById('details-motion-val');
+    this.detailsSqiVal = document.getElementById('details-sqi-val');
+
+    this.detailsHrBadge = document.getElementById('details-hr-badge');
+    this.detailsHrBpm = document.getElementById('details-hr-bpm');
+    this.detailsHrBase = document.getElementById('details-hr-base');
+    this.detailsHrZscore = document.getElementById('details-hr-zscore');
+    this.detailsHrConf = document.getElementById('details-hr-conf');
+
+    this.detailsBlinkBadge = document.getElementById('details-blink-badge');
+    this.detailsBlinkRate = document.getElementById('details-blink-rate');
+    this.detailsBlinkPerclos = document.getElementById('details-blink-perclos');
+    this.detailsBlinkEar = document.getElementById('details-blink-ear');
+    this.detailsBlinkState = document.getElementById('details-blink-state');
+
+    this.detailsWorkloadNum = document.getElementById('details-workload-num');
+    this.detailsWorkloadSubtext = document.getElementById('details-workload-subtext');
+    this.detailsCompHrVal = document.getElementById('details-comp-hr-val');
+    this.detailsCompHrBar = document.getElementById('details-comp-hr-bar');
+    this.detailsCompHrDesc = document.getElementById('details-comp-hr-desc');
+    this.detailsCompEyeVal = document.getElementById('details-comp-eye-val');
+    this.detailsCompEyeBar = document.getElementById('details-comp-eye-bar');
+    this.detailsCompEyeDesc = document.getElementById('details-comp-eye-desc');
+    this.detailsCompBlinkVal = document.getElementById('details-comp-blink-val');
+    this.detailsCompBlinkBar = document.getElementById('details-comp-blink-bar');
+    this.detailsCompBlinkDesc = document.getElementById('details-comp-blink-desc');
+    this.detailsCompPostureVal = document.getElementById('details-comp-posture-val');
+    this.detailsCompPostureBar = document.getElementById('details-comp-posture-bar');
+    this.detailsCompPostureDesc = document.getElementById('details-comp-posture-desc');
+    this.detailsCompDurVal = document.getElementById('details-comp-dur-val');
+    this.detailsCompDurDesc = document.getElementById('details-comp-dur-desc');
+
+    this.initDetailsInteractions();
+
+    // Quick Check-in Mode Elements
+    this.btnStartQuickCheckin = document.getElementById('btn-start-quick-checkin');
+    this.quickCheckinOverlay = document.getElementById('quick-checkin-overlay');
+    this.btnStopCheckin = document.getElementById('btn-stop-checkin');
+    this.checkinProgressFill = document.getElementById('checkin-progress-fill');
+    this.checkinGuideOval = document.getElementById('checkin-guide-oval');
+    this.checkinGuidanceText = document.getElementById('checkin-guidance-text');
+    this.checkinLightingAdvisory = document.getElementById('checkin-lighting-advisory');
+    this.checkinBrightnessPrompt = document.getElementById('checkin-brightness-prompt');
+    this.settingCheckinReminder = document.getElementById('setting-checkin-reminder');
+
+    // Header Baseline Tag
+    this.headerBaselineTag = document.getElementById('header-baseline-tag');
+    this.headerBaselineText = document.getElementById('header-baseline-text');
+
+    // Stale Baseline Banner
+    this.staleBaselineBanner = document.getElementById('stale-baseline-banner');
+    this.staleBaselineAge = document.getElementById('stale-baseline-age');
+    this.btnStaleRecalibrate = document.getElementById('btn-stale-recalibrate');
+    this.btnStaleDismiss = document.getElementById('btn-stale-dismiss');
+
+    // Calibration Banner
+    this.calibBanner = document.getElementById('calibration-banner');
+    this.calibTitle = document.getElementById('calibration-title');
+    this.calibTip = document.getElementById('calibration-status-tip');
+    this.calibFill = document.getElementById('calibration-fill');
+    this.calibPct = document.getElementById('calibration-pct');
+    this.calibrationTimer = document.getElementById('calibration-timer');
+    this.btnExtendCalibBanner = document.getElementById('btn-extend-calib-banner');
+
+    // Full-Screen Neutral-White Calibration Panel (Diffuse Screen Lighting)
+    this.whitePanel = document.getElementById('calibration-white-panel');
+    this.whiteTitle = document.getElementById('calib-white-title');
+    this.whitePct = document.getElementById('calib-white-pct');
+    this.whiteTimer = document.getElementById('calib-white-timer');
+    this.whiteFill = document.getElementById('calib-white-fill');
+    this.whiteTip = document.getElementById('calib-white-tip');
+    this.whiteStage = document.getElementById('calib-white-stage');
+    this.btnDuration2m = document.getElementById('btn-duration-2m');
+    this.btnDuration5m = document.getElementById('btn-duration-5m');
+    this.btnExtendCalib = document.getElementById('btn-extend-calib');
+    this.btnAbortCalib = document.getElementById('btn-abort-calibration');
+    this.calibSampleHr = document.getElementById('calib-sample-hr');
+    this.calibSampleBlink = document.getElementById('calib-sample-blink');
+    this.calibSampleMotion = document.getElementById('calib-sample-motion');
+    this.btnDismissWhitePanel = document.getElementById('btn-dismiss-white-panel');
+    this.isWhitePanelDismissed = false;
+
+    if (this.btnDismissWhitePanel) {
+      this.btnDismissWhitePanel.onclick = () => {
+        this.isWhitePanelDismissed = true;
+        if (this.whitePanel) this.whitePanel.style.display = 'none';
+      };
+    }
+
+    // 3-Second Pre-Flight Lighting Check Banner
+    this.lightingBanner = document.getElementById('lighting-check-banner');
+    this.lightingTimer = document.getElementById('lighting-check-timer');
+    this.lightingTipMsg = document.getElementById('lighting-check-tip');
+    this.lightingFill = document.getElementById('lighting-check-fill');
+    this.lightingPct = document.getElementById('lighting-check-pct');
+    this.preflightMeanVal = document.getElementById('preflight-mean-val');
+    this.preflightVarVal = document.getElementById('preflight-var-val');
+    this.preflightConfVal = document.getElementById('preflight-conf-val');
+
+    // Blocked / Insufficient Lighting Banner
+    this.insufficientBanner = document.getElementById('lighting-insufficient-banner');
+    this.insufficientBadge = document.getElementById('lighting-insufficient-badge');
+    this.insufficientReason = document.getElementById('lighting-insufficient-reason');
+    this.insufficientMeanLum = document.getElementById('insufficient-mean-lum');
+    this.insufficientLumVar = document.getElementById('insufficient-lum-var');
+    this.insufficientFaceConf = document.getElementById('insufficient-face-conf');
+    this.btnRecheckLighting = document.getElementById('btn-recheck-lighting');
+
+    // Low FPS Warning Banner (< 20 FPS)
+    this.fpsWarningBanner = document.getElementById('fps-warning-banner');
+    this.fpsWarningText = document.getElementById('fps-warning-text');
+    this.fpsWarningVal = document.getElementById('fps-warning-val');
+
+    // KPI Elements & Z-Score Badges
+    this.kpiBpm = document.getElementById('kpi-bpm');
+    this.kpiBpmRow = document.getElementById('kpi-bpm-row');
+    this.kpiBpmUnreliable = document.getElementById('kpi-bpm-unreliable');
+    this.kpiBpmSqiBadge = document.getElementById('kpi-bpm-sqi-badge');
+    this.kpiBpmConf = document.getElementById('kpi-bpm-conf');
+    this.kpiBpmBase = document.getElementById('kpi-bpm-base');
+    this.kpiBpmZscoreBadge = document.getElementById('kpi-bpm-zscore-badge');
+    this.kpiBpmZscore = document.getElementById('kpi-bpm-zscore');
+    this.kpiHrv = document.getElementById('kpi-hrv');
+    this.kpiStress = document.getElementById('kpi-stress-status');
+    this.kpiBlinkRate = document.getElementById('kpi-blink-rate');
+    this.kpiBlinkZscoreBadge = document.getElementById('kpi-blink-zscore-badge');
+    this.kpiBlinkZscore = document.getElementById('kpi-blink-zscore');
+    this.kpiEar = document.getElementById('kpi-ear-val');
+    this.kpiEarZscore = document.getElementById('kpi-ear-zscore');
+    this.kpiPerclos = document.getElementById('kpi-perclos-val');
+    this.kpiDrowsy = document.getElementById('kpi-drowsy-count');
+    this.kpiFatigue = document.getElementById('kpi-fatigue');
+    this.kpiAlertness = document.getElementById('kpi-alertness-status');
+
+    // Signal Quality Badges (Top Nav & Diagnostics Strip)
+    this.headerSqiTag = document.getElementById('header-sqi-tag');
+    this.headerSqiPip = document.getElementById('header-sqi-pip');
+    this.headerSqiText = document.getElementById('header-sqi-text');
+    this.diagSqiBadge = document.getElementById('diag-sqi-badge');
+
+    // Workload Estimate KPI Elements
+    this.kpiWorkloadRow = document.getElementById('kpi-workload-row');
+    this.kpiWorkloadVal = document.getElementById('kpi-workload-val');
+    this.kpiWorkloadConf = document.getElementById('kpi-workload-conf');
+    this.kpiWorkloadUnreliable = document.getElementById('kpi-workload-unreliable');
+    this.kpiWorkloadStatus = document.getElementById('kpi-workload-status');
+    this.btnOpenWorkloadInfo = document.getElementById('btn-open-workload-info');
+
+    // "How is this calculated?" Workload Breakdown Modal Elements
+    this.workloadModal = document.getElementById('workload-info-modal');
+    this.btnCloseWorkloadInfo = document.getElementById('btn-close-workload-info');
+    this.btnDoneWorkloadInfo = document.getElementById('btn-done-workload-info');
+    this.modalWorkloadVal = document.getElementById('modal-workload-val');
+    this.modalWorkloadValRow = document.getElementById('modal-workload-val-row');
+    this.modalWorkloadUnreliableMsg = document.getElementById('modal-workload-unreliable-msg');
+    this.modalWorkloadStatus = document.getElementById('modal-workload-status');
+    this.modalConfVal = document.getElementById('modal-conf-val');
+    this.modalConfBadge = document.getElementById('modal-conf-badge');
+    this.modalConfDetail = document.getElementById('modal-conf-detail');
+
+    // Modal Component Elements (30% HR, 30% Eye, 20% Blink, 20% Posture, Duration)
+    this.compScoreHr = document.getElementById('comp-score-hr');
+    this.compContribHr = document.getElementById('comp-contrib-hr');
+    this.compBarHr = document.getElementById('comp-bar-hr');
+    this.compDetailHr = document.getElementById('comp-detail-hr');
+
+    this.compScoreEye = document.getElementById('comp-score-eye');
+    this.compContribEye = document.getElementById('comp-contrib-eye');
+    this.compBarEye = document.getElementById('comp-bar-eye');
+    this.compDetailEye = document.getElementById('comp-detail-eye');
+
+    this.compScoreBlink = document.getElementById('comp-score-blink');
+    this.compContribBlink = document.getElementById('comp-contrib-blink');
+    this.compBarBlink = document.getElementById('comp-bar-blink');
+    this.compDetailBlink = document.getElementById('comp-detail-blink');
+
+    this.compScorePosture = document.getElementById('comp-score-posture');
+    this.compContribPosture = document.getElementById('comp-contrib-posture');
+    this.compBarPosture = document.getElementById('comp-bar-posture');
+    this.compDetailPosture = document.getElementById('comp-detail-posture');
+
+    this.compScoreDuration = document.getElementById('comp-score-duration');
+    this.compContribDuration = document.getElementById('comp-contrib-duration');
+    this.compDetailDuration = document.getElementById('comp-detail-duration');
+
+    // Diagnostic Meters
+    this.sqiVal = document.getElementById('diag-sqi-val');
+    this.sqiBar = document.getElementById('diag-sqi-bar');
+    this.lightingVal = document.getElementById('diag-lighting-val');
+    this.lightingBar = document.getElementById('diag-lighting-bar');
+    this.motionVal = document.getElementById('diag-motion-val');
+    this.motionBar = document.getElementById('diag-motion-bar');
+
+    // HUD Chips
+    this.chipFps = document.getElementById('chip-fps');
+    this.chipFace = document.getElementById('chip-face-status');
+    this.chipPose = document.getElementById('chip-head-pose');
+    this.lightingTip = document.getElementById('hud-lighting-tip');
+
+    // Debug HUD Elements (ROIs & Stability Telemetry)
+    this.debugHud = document.getElementById('camera-debug-hud');
+    this.debugHudPip = document.getElementById('debug-hud-pip');
+    this.debugHudFrameStatus = document.getElementById('debug-hud-frame-status');
+    this.debugHudMotion = document.getElementById('debug-hud-motion');
+    this.debugHudThreshold = document.getElementById('debug-hud-threshold');
+    this.debugHudPose = document.getElementById('debug-hud-pose');
+    this.debugHudIod = document.getElementById('debug-hud-iod');
+    this.debugHudBarFill = document.getElementById('debug-hud-bar-fill');
+    this.debugHudBarPct = document.getElementById('debug-hud-bar-pct');
+    this.debugHudWindowStatus = document.getElementById('debug-hud-window-status');
+    this.debugHudDiscardPct = document.getElementById('debug-hud-discard-pct');
+    this.debugHudFrameCounts = document.getElementById('debug-hud-frame-counts');
+    this.chipRoiForehead = document.getElementById('chip-roi-forehead');
+    this.chipRoiLeft = document.getElementById('chip-roi-left');
+    this.chipRoiRight = document.getElementById('chip-roi-right');
+    this.chipRoiBg = document.getElementById('chip-roi-bg');
+    this.debugHudIllumination = document.getElementById('debug-hud-illumination');
+    this.debugHudEar = document.getElementById('debug-hud-ear');
+    this.debugHudPerclos = document.getElementById('debug-hud-perclos');
+    this.debugHudMotionZ = document.getElementById('debug-hud-motion-z');
+
+    // Suggestions container
+    this.suggestionsContainer = document.getElementById('suggestions-list-container');
+    this.breathingContainer = document.getElementById('breathing-coach-container');
+
+    // History Modal
+    this.historyModal = document.getElementById('history-modal');
+    this.savedSessionsList = document.getElementById('saved-sessions-list');
+
+    // Dev Performance Overlay
+    this.devUiFps = document.getElementById('dev-ui-fps');
+    this.devPipelineFps = document.getElementById('dev-pipeline-fps');
+    this.devFrameDt = document.getElementById('dev-frame-dt');
+    this.devWorkerMode = document.getElementById('dev-worker-mode');
+
+    // Cached rendered values to prevent unnecessary DOM mutations & layout thrashing
+    this.lastRendered = {};
+
+    this.initConsentListeners();
+    this.initActionInteractions();
+  }
+
+  /**
+   * Update visible Camera Active indicators and Stop button text
+   */
+  setCameraActive(isActive) {
+    const activeText = isActive ? 'Camera active' : 'Camera stopped';
+    const tag = document.getElementById('camera-active-text');
+    const pip = document.getElementById('camera-active-pip');
+    const feedText = document.getElementById('camera-feed-text');
+    const feedPip = document.getElementById('camera-feed-pip');
+    const stopBtn = document.getElementById('btn-stop-camera');
+    const stopBtnFooter = document.getElementById('btn-stop-camera-footer');
+
+    if (tag) tag.textContent = activeText;
+    if (pip) pip.className = `status-pip ${isActive ? 'good' : 'muted'}`;
+    if (feedText) feedText.textContent = activeText;
+    if (feedPip) feedPip.className = `status-pip ${isActive ? 'good' : 'muted'}`;
+
+    const btnLabel = isActive ? 'Stop Camera' : 'Start Camera';
+    if (stopBtn) {
+      stopBtn.innerHTML = `<span class="status-pip ${isActive ? 'alert' : 'good'}" style="width: 5px; height: 5px;"></span> ${btnLabel}`;
+    }
+    if (stopBtnFooter) {
+      stopBtnFooter.textContent = btnLabel;
+    }
+  }
+
+  /**
+   * Update dev performance overlay telemetry
+   */
+  updateDevStats(uiFps, pipelineFps, dtSec, mode = 'WORKER') {
+    if (this.devUiFps) this.devUiFps.textContent = `${uiFps} FPS`;
+    if (this.devPipelineFps) this.devPipelineFps.textContent = `${pipelineFps} FPS`;
+    if (this.devFrameDt) this.devFrameDt.textContent = `${(dtSec * 1000).toFixed(1)} ms`;
+    if (this.devWorkerMode) this.devWorkerMode.textContent = mode;
+  }
+
+  /**
+   * Switch active application view
+   * @param {'landing' | 'consent' | 'dashboard'} viewName
+   */
+  showView(viewName) {
+    [this.viewLanding, this.viewConsent, this.viewDashboard].forEach((v) => {
+      v.classList.remove('active');
+    });
+
+    if (viewName === 'landing') this.viewLanding.classList.add('active');
+    else if (viewName === 'consent') this.viewConsent.classList.add('active');
+    else if (viewName === 'dashboard') this.viewDashboard.classList.add('active');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  initConsentListeners() {
+    const validateConsent = () => {
+      const isValid = this.checkWellness.checked && this.checkCamera.checked;
+      this.btnConsentProceed.disabled = !isValid;
+    };
+
+    if (this.checkWellness && this.checkCamera) {
+      this.checkWellness.addEventListener('change', validateConsent);
+      this.checkCamera.addEventListener('change', validateConsent);
+    }
+  }
+
+  setMonitoringStatus(status, text) {
+    if (!this.statusText || !this.statusIndicator) return;
+    this.statusText.textContent = text;
+    this.statusIndicator.style.boxShadow = 'none';
+
+    if (status === 'active') {
+      this.statusIndicator.style.backgroundColor = 'var(--good)';
+      this.statusText.style.color = 'var(--good)';
+    } else if (status === 'calibrating') {
+      this.statusIndicator.style.backgroundColor = 'var(--accent)';
+      this.statusText.style.color = 'var(--accent)';
+    } else if (status === 'paused') {
+      this.statusIndicator.style.backgroundColor = 'var(--caution)';
+      this.statusText.style.color = 'var(--caution)';
+    } else {
+      this.statusIndicator.style.backgroundColor = 'var(--alert)';
+      this.statusText.style.color = 'var(--alert)';
+    }
+  }
+
+  updateSessionTimer(seconds) {
+    if (!this.timerText) return;
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    const formatted = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+    if (this.lastRendered.sessionTimer !== formatted) {
+      this.lastRendered.sessionTimer = formatted;
+      this.timerText.textContent = formatted;
+    }
+  }
+
+  updateCalibrationView(calibData) {
+    if (!this.calibBanner) return;
+
+    if (calibData && calibData.isCalibrating) {
+      this.calibBanner.style.display = 'flex';
+      const pct = Math.round(calibData.progress || 0);
+      const remainingSec = calibData.remainingSec !== undefined ? calibData.remainingSec : 120;
+      const mins = Math.floor(remainingSec / 60);
+      const secs = remainingSec % 60;
+      const formattedTimer = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+
+      if (this.lastRendered.calibPct !== pct) {
+        this.lastRendered.calibPct = pct;
+        this.calibPct.textContent = `${pct}%`;
+      }
+      // Animate ONLY transform: zero reflow thrashing!
+      this.calibFill.style.transform = `scaleX(${pct / 100})`;
+      if (this.calibTitle) this.calibTitle.textContent = calibData.phaseTitle || 'Calibrating Personal Baseline...';
+      if (this.calibTip) this.calibTip.textContent = calibData.message;
+      if (this.calibrationTimer) this.calibrationTimer.textContent = formattedTimer;
+
+      // Full-screen neutral-white calibration panel:
+      // Active during calibration only to establish uniform diffuse key light
+      if (this.whitePanel && !this.isWhitePanelDismissed) {
+        this.whitePanel.style.display = 'flex';
+        if (this.whitePct) this.whitePct.textContent = `${pct}%`;
+        if (this.whiteTimer) this.whiteTimer.textContent = formattedTimer;
+        if (this.whiteFill) this.whiteFill.style.transform = `scaleX(${pct / 100})`;
+        if (this.whiteStage && calibData.phaseTitle) this.whiteStage.textContent = calibData.phaseTitle;
+        if (this.whiteTip) this.whiteTip.textContent = calibData.message;
+
+        // Real-time sample counters
+        if (calibData.samples) {
+          if (this.calibSampleHr) this.calibSampleHr.textContent = calibData.samples.bpm || 0;
+          if (this.calibSampleBlink) this.calibSampleBlink.textContent = calibData.samples.blink || 0;
+          if (this.calibSampleMotion) this.calibSampleMotion.textContent = calibData.samples.motion || 0;
+        }
+      }
+    } else {
+      this.calibBanner.style.display = 'none';
+      if (this.whitePanel) this.whitePanel.style.display = 'none';
+      // Reset dismissal flag so subsequent recalibrations re-show the panel
+      this.isWhitePanelDismissed = false;
+    }
+  }
+
+  setHeaderBaseline(baseline) {
+    if (!this.headerBaselineTag || !this.headerBaselineText) return;
+    if (baseline && baseline.heartRate && baseline.blinkRate) {
+      this.headerBaselineTag.style.display = 'inline-flex';
+      const hr = Math.round(baseline.heartRate.mean);
+      const hrStd = baseline.heartRate.std ? `±${baseline.heartRate.std.toFixed(1)}` : '';
+      const bl = Math.round(baseline.blinkRate.mean);
+      const ageMs = Date.now() - (baseline.timestamp || Date.now());
+      const ageDays = Math.floor(ageMs / (24 * 60 * 60 * 1000));
+      const ageStr = ageDays === 0 ? 'today' : `${ageDays}d old`;
+      this.headerBaselineText.textContent = `BASELINE: ${hr} ${hrStd} BPM • ${bl} BL/M • ${ageStr}`;
+    } else {
+      this.headerBaselineTag.style.display = 'none';
+    }
+  }
+
+  showStaleBaselinePrompt(isStale, ageDays, onRecalibrate, onDismiss) {
+    if (!this.staleBaselineBanner) return;
+    if (isStale) {
+      this.staleBaselineBanner.style.display = 'block';
+      if (this.staleBaselineAge) this.staleBaselineAge.textContent = ageDays;
+      if (this.btnStaleRecalibrate) {
+        this.btnStaleRecalibrate.onclick = () => {
+          this.staleBaselineBanner.style.display = 'none';
+          if (onRecalibrate) onRecalibrate();
+        };
+      }
+      if (this.btnStaleDismiss) {
+        this.btnStaleDismiss.onclick = () => {
+          this.staleBaselineBanner.style.display = 'none';
+          if (onDismiss) onDismiss();
+        };
+      }
+    } else {
+      this.staleBaselineBanner.style.display = 'none';
+    }
+  }
+
+  /**
+   * Update 3-second Pre-Flight Lighting Check display
+   */
+  updatePreflightLightingView(preflightData) {
+    if (!this.lightingBanner) return;
+
+    if (preflightData && preflightData.isActive) {
+      this.lightingBanner.style.display = 'flex';
+      const pct = Math.round(preflightData.progress * 100);
+      if (this.lightingFill) this.lightingFill.style.transform = `scaleX(${preflightData.progress})`;
+      if (this.lightingPct) this.lightingPct.textContent = `${pct}%`;
+      if (this.lightingTimer) this.lightingTimer.textContent = `${(preflightData.remainingSec || 0).toFixed(1)}s`;
+
+      if (preflightData.latest) {
+        const mean = Math.round(preflightData.latest.meanLuminance || 0);
+        const variance = Math.round(preflightData.latest.variance || 0);
+        const conf = Math.round((preflightData.latest.faceConfidence || 0) * 100);
+
+        if (this.preflightMeanVal) this.preflightMeanVal.textContent = `${mean} lux`;
+        if (this.preflightVarVal) this.preflightVarVal.textContent = `${variance}`;
+        if (this.preflightConfVal) this.preflightConfVal.textContent = `${conf}%`;
+      }
+    } else {
+      this.lightingBanner.style.display = 'none';
+    }
+  }
+
+  /**
+   * Display or hide the Insufficient Lighting Blocked/Paused Banner
+   */
+  setInsufficientLighting(isInsufficient, data = null) {
+    if (!this.insufficientBanner) return;
+
+    if (isInsufficient && data) {
+      this.insufficientBanner.style.display = 'flex';
+      if (this.insufficientBadge) {
+        this.insufficientBadge.textContent = data.isBlocked ? 'Measurement Blocked' : 'Measurement Paused';
+      }
+      if (this.insufficientReason) {
+        let reason = 'Face is not clearly visible in the camera viewport.';
+        if (data.isTooDark) {
+          reason = `Face is too dark (mean luminance is ${Math.round(data.meanLuminance || 0)} lux; minimum is 50 lux).`;
+        } else if (data.isOverexposed) {
+          reason = `Face is overexposed (mean luminance is ${Math.round(data.meanLuminance || 0)} lux; maximum is 215 lux).`;
+        } else if (!data.isFaceVisible) {
+          reason = `Face detection confidence is ${Math.round((data.faceConfidence || 0) * 100)}% (minimum 50% required).`;
+        } else if (data.variance !== undefined && data.variance < 15) {
+          reason = `Insufficient facial optical contrast (variance is ${Math.round(data.variance)}; minimum 15 required).`;
+        }
+        this.insufficientReason.textContent = reason;
+      }
+      if (this.insufficientMeanLum) {
+        this.insufficientMeanLum.textContent = `${Math.round(data.meanLuminance || 0)} lux`;
+      }
+      if (this.insufficientLumVar) {
+        this.insufficientLumVar.textContent = `${Math.round(data.variance || 0)}`;
+      }
+      if (this.insufficientFaceConf) {
+        this.insufficientFaceConf.textContent = `${Math.round((data.faceConfidence || 0) * 100)}%`;
+      }
+    } else {
+      this.insufficientBanner.style.display = 'none';
+    }
+  }
+
+  /**
+   * Display or hide the Low Frame Rate (< 20 FPS) Warning
+   */
+  setLowFpsWarning(isLow, currentFps = 0) {
+    if (!this.fpsWarningBanner) return;
+
+    if (isLow) {
+      this.fpsWarningBanner.style.display = 'flex';
+      if (this.fpsWarningText) {
+        this.fpsWarningText.textContent = `Frame rate is currently ${currentFps} FPS (< 20 FPS). Optical waveform precision may be degraded. Please close heavy background applications or improve illumination.`;
+      }
+      if (this.fpsWarningVal) {
+        this.fpsWarningVal.textContent = `${currentFps} FPS (< 20)`;
+      }
+      if (this.chipFps) {
+        this.chipFps.style.borderColor = 'var(--alert)';
+        this.chipFps.style.color = 'var(--alert)';
+      }
+    } else {
+      this.fpsWarningBanner.style.display = 'none';
+      if (this.chipFps) {
+        this.chipFps.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        this.chipFps.style.color = '#EDE8E1';
+      }
+    }
+  }
+
+  /**
+   * Update Floating Debug HUD with ROI & Motion Stability Telemetry
+   * @param {Object} detection - Latest detection object
+   * @param {Object} motion - Head motion analysis output
+   * @param {Object} windowStability - 10s window stability stats
+   * @param {boolean} showDebug - Whether the debug HUD is toggled on
+   * @param {Object} [illumination=null] - Illumination stability telemetry
+   * @param {Object} [blink=null] - Blink & ocular kinematics telemetry
+   */
+  updateDebugHud(detection, motion, windowStability, showDebug = true, illumination = null, blink = null) {
+    if (!this.debugHud) return;
+
+    if (!showDebug) {
+      this.debugHud.style.display = 'none';
+      return;
+    }
+    this.debugHud.style.display = 'block';
+
+    const isDetected = Boolean(detection && detection.detected);
+    const isNoisy = Boolean(motion && motion.isNoisy);
+    const isDiscarded = Boolean(motion && motion.isDiscarded);
+
+    // 1. Frame Status Badge
+    if (this.debugHudFrameStatus) {
+      if (!isDetected) {
+        this.debugHudFrameStatus.textContent = 'NO FACE';
+        this.debugHudFrameStatus.className = 'debug-hud-badge noisy';
+        if (this.debugHudPip) this.debugHudPip.className = 'status-pip alert';
+      } else if (isNoisy || isDiscarded) {
+        this.debugHudFrameStatus.textContent = 'NOISY (DISCARDED)';
+        this.debugHudFrameStatus.className = 'debug-hud-badge noisy';
+        if (this.debugHudPip) this.debugHudPip.className = 'status-pip alert';
+      } else {
+        this.debugHudFrameStatus.textContent = 'STABLE (PASSED)';
+        this.debugHudFrameStatus.className = 'debug-hud-badge';
+        if (this.debugHudPip) this.debugHudPip.className = 'status-pip good';
+      }
+    }
+
+    // 2. Head Movement & Threshold
+    if (motion) {
+      const normMov = motion.normalizedMovement !== undefined ? motion.normalizedMovement : 0;
+      const thresh = motion.threshold || 0.035;
+      const iod = motion.iod || 0;
+
+      if (this.debugHudMotion) {
+        this.debugHudMotion.textContent = `${normMov.toFixed(3)} IOD`;
+        this.debugHudMotion.style.color = isNoisy ? 'var(--alert)' : 'var(--text)';
+      }
+      if (this.debugHudThreshold) {
+        this.debugHudThreshold.textContent = `${thresh.toFixed(3)} IOD`;
+      }
+      if (this.debugHudIod) {
+        this.debugHudIod.textContent = `${Math.round(iod)} px`;
+      }
+
+      // Progress bar fill (0% to 100%)
+      const pctOfThresh = Math.round((normMov / thresh) * 100);
+      if (this.debugHudBarFill) {
+        this.debugHudBarFill.style.width = `${Math.min(100, pctOfThresh)}%`;
+        this.debugHudBarFill.style.backgroundColor = isNoisy ? 'var(--alert)' : 'var(--good)';
+      }
+      if (this.debugHudBarPct) {
+        this.debugHudBarPct.textContent = `${pctOfThresh}% threshold`;
+        this.debugHudBarPct.style.color = isNoisy ? 'var(--alert)' : 'var(--text-muted)';
+      }
+
+      // Pose
+      if (this.debugHudPose && motion.headPose) {
+        const { pitch, yaw, roll } = motion.headPose;
+        this.debugHudPose.textContent = `P${pitch > 0 ? '+' : ''}${Math.round(pitch)}° Y${yaw > 0 ? '+' : ''}${Math.round(yaw)}° R${roll > 0 ? '+' : ''}${Math.round(roll)}°`;
+      }
+    }
+
+    // 3. Illumination Stability Readout
+    if (this.debugHudIllumination) {
+      if (illumination) {
+        if (illumination.isUnstable) {
+          this.debugHudIllumination.textContent = `UNSTABLE (Δ${illumination.bgDeltaPct || 0}%)`;
+          this.debugHudIllumination.style.color = 'var(--alert)';
+        } else {
+          this.debugHudIllumination.textContent = 'STABLE';
+          this.debugHudIllumination.style.color = 'var(--good)';
+        }
+      } else {
+        this.debugHudIllumination.textContent = 'STABLE';
+        this.debugHudIllumination.style.color = 'var(--good)';
+      }
+    }
+
+    // 4. Ocular Kinematics: EAR, Personal Threshold, PERCLOS & Confidence (Jitter)
+    if (blink) {
+      if (this.debugHudEar) {
+        const curEar = (blink.ear !== undefined ? blink.ear : 0).toFixed(2);
+        const thresh = (blink.personalThreshold || 0.22).toFixed(2);
+        this.debugHudEar.textContent = `${curEar} / ${thresh}`;
+        this.debugHudEar.style.color = blink.isEyeClosed ? 'var(--caution)' : 'var(--text)';
+      }
+      if (this.debugHudPerclos) {
+        const pct = (blink.perclosPct !== undefined ? blink.perclosPct : (blink.perclos * 100 || 0)).toFixed(1);
+        const conf = blink.confidence !== undefined ? Math.round(blink.confidence) : 100;
+        this.debugHudPerclos.textContent = `${pct}% (${conf}%)`;
+        this.debugHudPerclos.style.color = blink.isOccludedOrJittering
+          ? 'var(--alert)'
+          : conf < 65
+          ? 'var(--caution)'
+          : 'var(--text)';
+      }
+    }
+
+    // 5. 10-Second Window Discard Statistics
+    const win = windowStability || (motion ? motion.windowStability : null);
+    if (win) {
+      const isLowConf = Boolean(win.isLowConfidence);
+      if (this.debugHudWindowStatus) {
+        this.debugHudWindowStatus.textContent = isLowConf ? 'LOW CONFIDENCE' : 'CONFIDENT';
+        this.debugHudWindowStatus.className = `debug-hud-window-status mono ${isLowConf ? 'low-confidence' : ''}`;
+      }
+      if (this.debugHudDiscardPct) {
+        this.debugHudDiscardPct.textContent = `${win.discardPercentage}%`;
+        this.debugHudDiscardPct.style.color = isLowConf ? 'var(--alert)' : 'var(--text)';
+      }
+      if (this.debugHudFrameCounts) {
+        this.debugHudFrameCounts.textContent = `${win.discardedFrames} / ${win.totalFrames} frames`;
+      }
+    }
+
+    // 6. ROIs Active Indicator: Background Ref, Forehead, Left Cheek, Right Cheek
+    const hasBg = Boolean(detection && (detection.bgRoi || (detection.rois && detection.rois.bgRoi)));
+    const hasForehead = Boolean(detection && (detection.foreheadRoi || (detection.rois && detection.rois.forehead)));
+    const hasLeft = Boolean(detection && (detection.leftCheekRoi || (detection.rois && detection.rois.leftCheek)));
+    const hasRight = Boolean(detection && (detection.rightCheekRoi || (detection.rois && detection.rois.rightCheek)));
+
+    if (this.chipRoiBg) this.chipRoiBg.className = `debug-roi-chip ${hasBg ? 'locked' : ''}`;
+    if (this.chipRoiForehead) this.chipRoiForehead.className = `debug-roi-chip ${hasForehead ? 'locked' : ''}`;
+    if (this.chipRoiLeft) this.chipRoiLeft.className = `debug-roi-chip ${hasLeft ? 'locked' : ''}`;
+    if (this.chipRoiRight) this.chipRoiRight.className = `debug-roi-chip ${hasRight ? 'locked' : ''}`;
+  }
+
+  /**
+   * Initialize Suggested Action Button interactions and action modal
+   */
+  initActionInteractions() {
+    if (this.btnSuggestedAction) {
+      this.btnSuggestedAction.addEventListener('click', () => {
+        const action = this.currentSuggestedAction || 'Keep going';
+        this.handleSuggestedAction(action);
+      });
+    }
+
+    if (this.btnCloseActionModal) {
+      this.btnCloseActionModal.addEventListener('click', () => {
+        this.closeActionModal();
+      });
+    }
+
+    if (this.btnActionModalDone) {
+      this.btnActionModalDone.addEventListener('click', () => {
+        this.closeActionModal();
+      });
+    }
+
+    if (this.actionModal) {
+      this.actionModal.addEventListener('click', (e) => {
+        if (e.target === this.actionModal) {
+          this.closeActionModal();
+        }
+      });
+    }
+  }
+
+  /**
+   * Initialize settings preferences modal interactions
+   */
+  initSettingsInteractions(alertSystem) {
+    if (this.btnOpenSettings) {
+      this.btnOpenSettings.addEventListener('click', () => {
+        this.openSettingsModal(alertSystem);
+      });
+    }
+
+    if (this.btnCloseSettings) {
+      this.btnCloseSettings.addEventListener('click', () => {
+        this.closeSettingsModal();
+      });
+    }
+
+    if (this.btnDoneSettings) {
+      this.btnDoneSettings.addEventListener('click', () => {
+        this.closeSettingsModal();
+      });
+    }
+
+    if (this.settingsModal) {
+      this.settingsModal.addEventListener('click', (e) => {
+        if (e.target === this.settingsModal) {
+          this.closeSettingsModal();
+        }
+      });
+    }
+
+    if (this.settingSoundChime && alertSystem) {
+      this.settingSoundChime.checked = alertSystem.soundEnabled;
+      this.settingSoundChime.addEventListener('change', () => {
+        alertSystem.setSoundEnabled(this.settingSoundChime.checked);
+        this.showToast(
+          this.settingSoundChime.checked ? '🔔' : '🔕',
+          this.settingSoundChime.checked ? 'Gentle chime enabled.' : 'Chime silenced (default).'
+        );
+      });
+    }
+
+    if (this.btnTestChime && alertSystem) {
+      this.btnTestChime.addEventListener('click', () => {
+        alertSystem.playGentleChime();
+      });
+    }
+
+    if (this.btnResumeAlerts && alertSystem) {
+      this.btnResumeAlerts.addEventListener('click', () => {
+        alertSystem.resumeAlerts();
+        this.updateSettingsSnoozeStatus(alertSystem);
+      });
+    }
+
+    if (this.settingCheckinReminder && alertSystem) {
+      const mins = alertSystem.checkinReminderMinutes || 0;
+      this.settingCheckinReminder.value = mins === 60 ? '60' : mins === 30 ? '30' : 'off';
+      this.settingCheckinReminder.addEventListener('change', () => {
+        alertSystem.setCheckinReminderInterval(this.settingCheckinReminder.value);
+        const label = this.settingCheckinReminder.value === '60'
+          ? 'Reminding every hour.'
+          : this.settingCheckinReminder.value === '30'
+          ? 'Reminding every 30 minutes.'
+          : 'Check-in reminders turned off.';
+        this.showToast('⏱️', label);
+      });
+    }
+
+    // Background Watch setting
+    const settingBgWatch = document.getElementById('setting-bg-watch');
+    if (settingBgWatch) {
+      const stored = localStorage.getItem('pulsecam_bg_watch');
+      settingBgWatch.checked = stored !== 'false';
+      settingBgWatch.addEventListener('change', () => {
+        localStorage.setItem('pulsecam_bg_watch', settingBgWatch.checked ? 'true' : 'false');
+        if (window.__pulsecam_app && window.__pulsecam_app.worker) {
+          window.__pulsecam_app.worker.postMessage({
+            type: 'SET_BACKGROUND_WATCH',
+            enabled: settingBgWatch.checked
+          });
+        }
+        this.showToast('👁️', settingBgWatch.checked ? 'Background watch active.' : 'Background watch turned off.');
+      });
+    }
+
+    // Reminder gentleness
+    const settingGentleness = document.getElementById('setting-reminder-gentleness');
+    if (settingGentleness && alertSystem) {
+      settingGentleness.value = alertSystem.gentleness || 'normal';
+      settingGentleness.addEventListener('change', () => {
+        alertSystem.setGentleness(settingGentleness.value);
+        this.showToast('🌿', `Reminder gentleness set to ${settingGentleness.value}.`);
+      });
+    }
+
+    // Quiet hours
+    const settingQuietStart = document.getElementById('setting-quiet-start');
+    const settingQuietEnd = document.getElementById('setting-quiet-end');
+    if (settingQuietStart && settingQuietEnd && alertSystem) {
+      settingQuietStart.value = alertSystem.quietStart || '22:00';
+      settingQuietEnd.value = alertSystem.quietEnd || '08:00';
+      const onQuietChange = () => {
+        alertSystem.setQuietHours(settingQuietStart.value, settingQuietEnd.value);
+      };
+      settingQuietStart.addEventListener('change', onQuietChange);
+      settingQuietEnd.addEventListener('change', onQuietChange);
+    }
+
+    // Break length
+    const settingBreakLength = document.getElementById('setting-break-length');
+    if (settingBreakLength) {
+      const storedBreak = localStorage.getItem('pulsecam_break_length') || '2';
+      settingBreakLength.value = storedBreak;
+      settingBreakLength.addEventListener('change', () => {
+        localStorage.setItem('pulsecam_break_length', settingBreakLength.value);
+        this.showToast('☕', `Break length set to ${settingBreakLength.value} minutes.`);
+      });
+    }
+
+    // Pause for 1 hour
+    const btnPause1hr = document.getElementById('btn-pause-1hr');
+    if (btnPause1hr && alertSystem) {
+      btnPause1hr.addEventListener('click', () => {
+        alertSystem.snooze(60 * 60 * 1000); // 1 hour snooze
+        if (window.__pulsecam_app) {
+          window.__pulsecam_app.isPaused = true;
+          const btnToggle = document.getElementById('btn-toggle-pause');
+          if (btnToggle) btnToggle.textContent = 'Resume';
+          this.setMonitoringStatus('paused', 'PAUSED (1 HOUR)');
+        }
+        this.updateSettingsSnoozeStatus(alertSystem);
+        this.showToast('🌙', 'Paused for 1 hour. Take a restful break.');
+      });
+    }
+
+    // Delete My Data (Phase 5)
+    const btnDeleteData = document.getElementById('btn-delete-all-data');
+    if (btnDeleteData) {
+      btnDeleteData.addEventListener('click', () => {
+        if (confirm('Permanently delete your calibrated baseline and session records from this browser?')) {
+          localStorage.clear();
+          this.showToast('🗑️', 'All local data has been permanently cleared.');
+          setTimeout(() => {
+            window.location.reload();
+          }, 1200);
+        }
+      });
+    }
+  }
+
+  openSettingsModal(alertSystem) {
+    if (!this.settingsModal) return;
+    if (this.settingSoundChime && alertSystem) {
+      this.settingSoundChime.checked = alertSystem.soundEnabled;
+    }
+    if (this.settingCheckinReminder && alertSystem) {
+      const mins = alertSystem.checkinReminderMinutes || 0;
+      this.settingCheckinReminder.value = mins === 60 ? '60' : mins === 30 ? '30' : 'off';
+    }
+    const settingGentleness = document.getElementById('setting-reminder-gentleness');
+    if (settingGentleness && alertSystem) {
+      settingGentleness.value = alertSystem.gentleness || 'normal';
+    }
+    const settingBgWatch = document.getElementById('setting-bg-watch');
+    if (settingBgWatch) {
+      settingBgWatch.checked = localStorage.getItem('pulsecam_bg_watch') !== 'false';
+    }
+    this.updateSettingsSnoozeStatus(alertSystem);
+    this.settingsModal.classList.add('open');
+  }
+
+  closeSettingsModal() {
+    if (this.settingsModal) {
+      this.settingsModal.classList.remove('open');
+    }
+  }
+
+  updateSettingsSnoozeStatus(alertSystem) {
+    if (!this.settingsSnoozeStatus || !alertSystem) return;
+    if (alertSystem.isSnoozed()) {
+      const mins = alertSystem.getRemainingSnoozeMinutes();
+      this.settingsSnoozeStatus.textContent = `Snoozed (${mins} min remaining)`;
+      if (this.btnResumeAlerts) this.btnResumeAlerts.style.display = 'inline-flex';
+    } else {
+      this.settingsSnoozeStatus.textContent = 'Active (delivering friendly, short suggestions)';
+      if (this.btnResumeAlerts) this.btnResumeAlerts.style.display = 'none';
+    }
+  }
+
+  /**
+   * Initialize "For the curious" technical details panel interactions
+   */
+  initDetailsInteractions() {
+    if (this.btnOpenDetails) {
+      this.btnOpenDetails.addEventListener('click', (e) => {
+        e.preventDefault();
+        this.openDetailsModal();
+      });
+    }
+
+    if (this.btnCloseDetails) {
+      this.btnCloseDetails.addEventListener('click', () => {
+        this.closeDetailsModal();
+      });
+    }
+
+    if (this.btnDoneDetails) {
+      this.btnDoneDetails.addEventListener('click', () => {
+        this.closeDetailsModal();
+      });
+    }
+
+    if (this.detailsModal) {
+      this.detailsModal.addEventListener('click', (e) => {
+        if (e.target === this.detailsModal) {
+          this.closeDetailsModal();
+        }
+      });
+    }
+  }
+
+  openDetailsModal() {
+    if (!this.detailsModal) return;
+    this.isDetailsPanelOpen = true;
+    this.detailsModal.classList.add('open');
+
+    // If app instance is available, request an immediate update
+    if (window.__pulsecam_app && typeof window.__pulsecam_app.updateDetailsNow === 'function') {
+      window.__pulsecam_app.updateDetailsNow();
+    }
+  }
+
+  closeDetailsModal() {
+    if (this.detailsModal) {
+      this.detailsModal.classList.remove('open');
+    }
+    this.isDetailsPanelOpen = false;
+  }
+
+  /**
+   * Set Quick Check-in mode active visibility
+   */
+  setQuickCheckinActive(active) {
+    if (this.quickCheckinOverlay) {
+      this.quickCheckinOverlay.style.display = active ? 'flex' : 'none';
+    }
+  }
+
+  /**
+   * Update Quick Check-in 60s progress bar
+   */
+  updateCheckinProgress(progress) {
+    if (this.checkinProgressFill) {
+      const pct = Math.max(0, Math.min(100, Math.round(progress * 100)));
+      this.checkinProgressFill.style.width = `${pct}%`;
+    }
+  }
+
+  /**
+   * Update Quick Check-in minimal face-alignment guide (oval + short plain text guidance)
+   */
+  updateCheckinAlignment({ faceDetected, isCentered, isGoodDistance, isFacingScreen, isStill, guidanceText, isLightingInvalid }) {
+    const isAligned = Boolean(faceDetected && isCentered && isGoodDistance && isFacingScreen && isStill);
+
+    if (this.checkinGuideOval) {
+      if (isAligned) {
+        this.checkinGuideOval.className = 'checkin-guide-oval aligned';
+      } else {
+        this.checkinGuideOval.className = 'checkin-guide-oval not-aligned';
+      }
+    }
+
+    if (this.checkinGuidanceText) {
+      this.checkinGuidanceText.textContent = guidanceText || (isAligned ? 'Hold still' : 'Center your face in the oval');
+      if (isAligned) {
+        this.checkinGuidanceText.className = 'checkin-guidance-text aligned';
+      } else {
+        this.checkinGuidanceText.className = 'checkin-guidance-text';
+      }
+    }
+
+    if (this.checkinLightingAdvisory) {
+      this.checkinLightingAdvisory.style.display = isLightingInvalid ? 'block' : 'none';
+    }
+  }
+
+  /**
+   * Populate live technical signals for the curious user
+   */
+  updateDetailsPanel(data) {
+    if (!this.isDetailsPanelOpen || !data) return;
+
+    // 1. Signal Quality & Environmental Optics
+    const sqiScore = data.sqi ? (data.sqi.score !== undefined ? data.sqi.score : 85) : 85;
+    const sqiBadge = data.sqi ? (data.sqi.badge || (sqiScore >= 70 ? 'High' : sqiScore >= 45 ? 'Moderate' : 'Low')) : 'High';
+    if (this.detailsSqiBadge) {
+      this.detailsSqiBadge.textContent = `${sqiBadge} Confidence (${sqiScore})`;
+      this.detailsSqiBadge.className = `stamp-tag ${sqiScore >= 70 ? 'good' : sqiScore >= 45 ? 'caution' : 'alert'}`;
+    }
+    if (this.detailsFaceVal) {
+      this.detailsFaceVal.textContent = data.faceDetected ? 'Locked (468 pts)' : 'Searching...';
+    }
+    if (this.detailsLightingVal) {
+      const lum = data.lighting && data.lighting.meanLuminance !== undefined ? Math.round(data.lighting.meanLuminance) : 100;
+      const isValid = data.lighting ? data.lighting.isValid : true;
+      this.detailsLightingVal.textContent = isValid ? `Even Diffuse (${lum})` : 'Insufficient Light';
+    }
+    if (this.detailsMotionVal) {
+      const isMotionLow = data.motion ? data.motion.isStable : true;
+      this.detailsMotionVal.textContent = isMotionLow ? 'Still (Stable)' : 'Movement / Jitter';
+    }
+    if (this.detailsSqiVal) {
+      this.detailsSqiVal.textContent = `${sqiBadge} (${sqiScore}/100)`;
+    }
+
+    // 2. Heart-Rate Rhythm & Autonomic Trend
+    const curBpm = data.bpm !== null && data.bpm !== undefined && data.bpm > 0 ? Math.round(data.bpm) : null;
+    const baseBpm = data.baseline && data.baseline.heartRate && data.baseline.heartRate.mean
+      ? Math.round(data.baseline.heartRate.mean)
+      : (data.activeBaseline?.heartRate?.mean ? Math.round(data.activeBaseline.heartRate.mean) : 72);
+    const zBpm = data.zScores?.bpm !== undefined && data.zScores?.bpm !== null
+      ? (data.zScores.bpm > 0 ? '+' : '') + Number(data.zScores.bpm).toFixed(1) + 'σ'
+      : (curBpm ? ((curBpm - baseBpm) / 10 > 0 ? '+' : '') + ((curBpm - baseBpm) / 10).toFixed(1) + 'σ' : '0.0σ');
+
+    if (this.detailsHrBpm) this.detailsHrBpm.textContent = curBpm ? `${curBpm} BPM` : 'Acquiring...';
+    if (this.detailsHrBase) this.detailsHrBase.textContent = `${baseBpm} BPM`;
+    if (this.detailsHrZscore) this.detailsHrZscore.textContent = zBpm;
+    if (this.detailsHrConf) {
+      const conf = data.rppgConfidence !== undefined ? Math.round(data.rppgConfidence) : 85;
+      this.detailsHrConf.textContent = curBpm ? `${conf}%` : '--%';
+    }
+
+    // 3. Blink Dynamics & Ocular Kinematics
+    const blinkRate = data.blinkRate !== undefined ? Math.round(data.blinkRate) : 16;
+    const perclos = data.perclos !== undefined ? Number(data.perclos).toFixed(1) : '3.0';
+    const curEar = data.ear !== undefined ? Number(data.ear).toFixed(2) : '0.28';
+    const threshEar = data.blink?.personalThreshold ? Number(data.blink.personalThreshold).toFixed(2) : '0.22';
+
+    if (this.detailsBlinkRate) this.detailsBlinkRate.textContent = `${blinkRate} / min`;
+    if (this.detailsBlinkPerclos) this.detailsBlinkPerclos.textContent = `${perclos}%`;
+    if (this.detailsBlinkEar) this.detailsBlinkEar.textContent = `${curEar} / ${threshEar}`;
+    if (this.detailsBlinkState) {
+      if (Number(perclos) > 15) this.detailsBlinkState.textContent = 'Fatigue / Drowsy';
+      else if (blinkRate < 10) this.detailsBlinkState.textContent = 'Screen Fixation Stare';
+      else if (blinkRate > 25) this.detailsBlinkState.textContent = 'Compensatory Flutter';
+      else this.detailsBlinkState.textContent = 'Natural Cadence';
+    }
+
+    // 4. Workload Score Breakdown
+    const h = data.heuristics;
+    const score = data.workloadScore !== undefined ? data.workloadScore : (h?.workloadEstimate || 24);
+    if (this.detailsWorkloadNum) this.detailsWorkloadNum.textContent = String(score);
+    if (this.detailsWorkloadSubtext) {
+      this.detailsWorkloadSubtext.textContent = score >= 70 ? 'High cognitive / visual load' : score >= 45 ? 'Moderate workload' : 'Resting / Low workload';
+    }
+
+    const comps = h?.components;
+    if (comps) {
+      if (this.detailsCompHrVal) this.detailsCompHrVal.textContent = `${comps.heartRate?.score || 20} pts (contrib: +${comps.heartRate?.weightedScore || 6.0})`;
+      if (this.detailsCompHrBar) this.detailsCompHrBar.style.width = `${Math.min(100, comps.heartRate?.score || 20)}%`;
+      if (this.detailsCompHrDesc && comps.heartRate?.detail) this.detailsCompHrDesc.textContent = comps.heartRate.detail;
+
+      if (this.detailsCompEyeVal) this.detailsCompEyeVal.textContent = `${comps.eyeClosure?.score || 15} pts (contrib: +${comps.eyeClosure?.weightedScore || 4.5})`;
+      if (this.detailsCompEyeBar) this.detailsCompEyeBar.style.width = `${Math.min(100, comps.eyeClosure?.score || 15)}%`;
+      if (this.detailsCompEyeDesc && comps.eyeClosure?.detail) this.detailsCompEyeDesc.textContent = comps.eyeClosure.detail;
+
+      if (this.detailsCompBlinkVal) this.detailsCompBlinkVal.textContent = `${comps.blinkPattern?.score || 15} pts (contrib: +${comps.blinkPattern?.weightedScore || 3.0})`;
+      if (this.detailsCompBlinkBar) this.detailsCompBlinkBar.style.width = `${Math.min(100, comps.blinkPattern?.score || 15)}%`;
+      if (this.detailsCompBlinkDesc && comps.blinkPattern?.detail) this.detailsCompBlinkDesc.textContent = comps.blinkPattern.detail;
+
+      if (this.detailsCompPostureVal) this.detailsCompPostureVal.textContent = `${comps.headPosture?.score || 10} pts (contrib: +${comps.headPosture?.weightedScore || 2.0})`;
+      if (this.detailsCompPostureBar) this.detailsCompPostureBar.style.width = `${Math.min(100, comps.headPosture?.score || 10)}%`;
+      if (this.detailsCompPostureDesc && comps.headPosture?.detail) this.detailsCompPostureDesc.textContent = comps.headPosture.detail;
+
+      if (this.detailsCompDurVal) this.detailsCompDurVal.textContent = `+${comps.sessionDuration?.addedPoints || 0.0} pts`;
+      if (this.detailsCompDurDesc && comps.sessionDuration?.detail) this.detailsCompDurDesc.textContent = comps.sessionDuration.detail;
+    }
+  }
+
+  handleSuggestedAction(action) {
+    if (action === 'Look away for 20 seconds') {
+      this.openActionModal({
+        title: 'Look away for 20 seconds',
+        subtitle: 'Rest your optical focus with the 20-20-20 principle.',
+        seconds: 20,
+        prompt: 'Look at an object at least 20 feet away to relax your eye focusing muscles.'
+      });
+    } else if (action === 'Take a 2-minute break') {
+      this.openActionModal({
+        title: 'Take a 2-minute break',
+        subtitle: 'Step back, breathe slowly, and let your body and mind reset.',
+        seconds: 120,
+        prompt: 'Step away from your screen. Relax your shoulders and take slow, deep breaths.'
+      });
+    } else if (action === 'Stretch') {
+      this.showToast('🧘', 'Posture reset: roll your shoulders back and gently tilt your head.');
+    } else if (action === 'Drink water') {
+      this.showToast('💧', 'Hydration logged: enjoy a mindful glass of water.');
+    } else if (action === 'Check lighting') {
+      if (window.__pulsecam_app && typeof window.__pulsecam_app.startPreflightCheck === 'function') {
+        window.__pulsecam_app.startPreflightCheck();
+      }
+    } else { // 'Keep going'
+      this.showToast('✨', 'Continuing your session. Steady focus ahead.');
+    }
+  }
+
+  openActionModal({ title, subtitle, seconds, prompt }) {
+    if (!this.actionModal) return;
+    if (this.actionModalTitle) this.actionModalTitle.textContent = title;
+    if (this.actionModalSubtitle) this.actionModalSubtitle.textContent = subtitle;
+    if (this.actionModalPrompt) this.actionModalPrompt.textContent = prompt;
+
+    let remaining = seconds;
+    if (this.actionModalTimer) this.actionModalTimer.textContent = remaining;
+
+    if (this.actionCountdownInterval) {
+      clearInterval(this.actionCountdownInterval);
+    }
+
+    this.actionCountdownInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(this.actionCountdownInterval);
+        this.actionCountdownInterval = null;
+        if (this.actionModalTimer) this.actionModalTimer.textContent = '✓';
+        if (this.actionModalPrompt) this.actionModalPrompt.textContent = 'Break complete! Feel free to resume when ready.';
+      } else {
+        if (this.actionModalTimer) this.actionModalTimer.textContent = remaining;
+      }
+    }, 1000);
+
+    this.actionModal.classList.add('open');
+  }
+
+  closeActionModal() {
+    if (this.actionCountdownInterval) {
+      clearInterval(this.actionCountdownInterval);
+      this.actionCountdownInterval = null;
+    }
+    if (this.actionModal) this.actionModal.classList.remove('open');
+  }
+
+  showToast(icon, text) {
+    if (!this.humanToast) return;
+    if (this.humanToastIcon) this.humanToastIcon.textContent = icon;
+    if (this.humanToastText) this.humanToastText.textContent = text;
+    this.humanToast.style.display = 'inline-flex';
+
+    if (this.toastTimeout) clearTimeout(this.toastTimeout);
+    this.toastTimeout = setTimeout(() => {
+      if (this.humanToast) this.humanToast.style.display = 'none';
+    }, 3500);
+  }
+
+  /**
+   * Update the soft horizontal day summary bar (no axes, no numbers, no gridlines)
+   * @param {{ calmSec: number, busySec: number, tiredSec: number }} timeSplit
+   */
+  updateDaySummary(timeSplit) {
+    if (!this.dayBarCalm || !this.dayBarBusy || !this.dayBarTired) return;
+    const calm = Math.max(0, timeSplit.calmSec || 0);
+    const busy = Math.max(0, timeSplit.busySec || 0);
+    const tired = Math.max(0, timeSplit.tiredSec || 0);
+    const total = calm + busy + tired;
+
+    if (total > 0.5) {
+      const calmRatio = Math.max(0.02, calm / total);
+      const busyRatio = Math.max(0.02, busy / total);
+      const tiredRatio = Math.max(0.02, tired / total);
+      this.dayBarCalm.style.flex = calmRatio;
+      this.dayBarBusy.style.flex = busyRatio;
+      this.dayBarTired.style.flex = tiredRatio;
+    } else {
+      this.dayBarCalm.style.flex = 1;
+      this.dayBarBusy.style.flex = 0;
+      this.dayBarTired.style.flex = 0;
+    }
+  }
+
+  /**
+   * Main telemetry update: drives the human interface in plain language.
+   * Completely hides raw values, head angles, EAR, SNR, FFT, z-scores, percentage weights, fps counters, raw BPM charts, confidence numbers, and jargon.
+   */
+  updateTelemetry(data) {
+    // 1. Determine Low Quality / Unreliable State
+    const isLightingInvalid = Boolean(data.lighting && !data.lighting.isValid);
+    const isLightingBlocked = Boolean(data.isBlockedLighting || data.isPausedLighting);
+    const isFaceMissing = !data.faceDetected;
+    const isSqiLow = Boolean(data.sqi && (data.sqi.isLow || data.sqi.score < 45));
+    const isConfidenceLow = (data.rppgConfidence !== undefined && data.rppgConfidence < 40);
+    const isPreflight = data.sessionState === 'PREFLIGHT';
+    const isLowQuality = isLightingInvalid || isLightingBlocked || isFaceMissing || isSqiLow || isConfidenceLow || isPreflight;
+
+    // Session minutes
+    const sessionSec = data.sessionElapsedSec || 0;
+    const elapsedMinutes = Math.max(1, Math.floor(sessionSec / 60));
+    const minText = `${elapsedMinutes} ${elapsedMinutes === 1 ? 'minute' : 'minutes'}`;
+
+    let state = 'calm'; // 'calm' (green) | 'busy' (yellow) | 'tired' (red) | 'reading' (grey)
+    let headline = "You're doing great";
+    let supporting = `You've been working for ${minText}.`;
+    let suggestedAction = 'Keep going';
+
+    if (isLowQuality) {
+      state = 'reading';
+      headline = 'Getting a clear reading...';
+      if (isLightingInvalid || isLightingBlocked) {
+        supporting = 'Lighting is insufficient for reliable estimation.';
+        suggestedAction = 'Check lighting';
+      } else {
+        supporting = "We can't get a clear reading right now. Try facing a light source.";
+        suggestedAction = 'Keep going';
+      }
+    } else {
+      // Workload and fatigue assessment from underlying signal pipeline
+      const workload = data.workloadScore !== undefined ? data.workloadScore : (data.fatigueScore || 0);
+      const perclos = data.perclos || 0;
+      const isDrowsy = perclos > 22 || workload > 65 || elapsedMinutes > 75;
+      const isEyeStrain = perclos > 14 || workload >= 35 || (data.blinkRate !== undefined && data.blinkRate < 11) || elapsedMinutes > 35;
+
+      if (isDrowsy) {
+        state = 'tired';
+        headline = "You've been pushing hard, take a break";
+        supporting = `You've been working for ${minText}.`;
+        suggestedAction = 'Take a 2-minute break';
+      } else if (isEyeStrain) {
+        state = 'busy';
+        headline = 'Time to rest your eyes soon';
+        supporting = `You've been working for ${minText}.`;
+        suggestedAction = 'Look away for 20 seconds';
+      } else {
+        state = 'calm';
+        headline = "You're doing great";
+        supporting = `You've been working for ${minText}.`;
+        suggestedAction = elapsedMinutes >= 25 ? 'Drink water' : 'Keep going';
+      }
+    }
+
+    // 1. One large status headline in plain language with a calm color
+    if (this.humanStatusHeadline && this.lastRendered.headline !== headline) {
+      this.lastRendered.headline = headline;
+      this.humanStatusHeadline.textContent = headline;
+      this.humanStatusHeadline.className = `human-status-headline state-${state}`;
+    }
+
+    if (this.humanStatusPip) {
+      this.humanStatusPip.className = `human-status-pip state-${state}`;
+    }
+    if (this.humanStatusTag) {
+      const tagMap = {
+        calm: 'Mindful State',
+        busy: 'Focus State',
+        tired: 'Rest Needed',
+        reading: 'Acquiring Signal'
+      };
+      this.humanStatusTag.textContent = tagMap[state] || 'Mindful State';
+    }
+
+    // 2. One short supporting sentence
+    if (this.humanSupportingText && this.lastRendered.supporting !== supporting) {
+      this.lastRendered.supporting = supporting;
+      this.humanSupportingText.textContent = supporting;
+    }
+
+    // 3. One clear suggested action button
+    if (this.suggestedActionLabel && this.lastRendered.suggestedAction !== suggestedAction) {
+      this.lastRendered.suggestedAction = suggestedAction;
+      this.currentSuggestedAction = suggestedAction;
+      this.suggestedActionLabel.textContent = suggestedAction;
+    }
+
+    // 6. Plain wording for low-quality states (Never show a number when confidence is low)
+    if (this.humanLowQualityBox) {
+      if (isLowQuality) {
+        this.humanLowQualityBox.style.display = 'block';
+        if (this.humanLowQualityTitle) {
+          this.humanLowQualityTitle.textContent = 'Lighting is insufficient for reliable estimation.';
+        }
+        if (this.humanLowQualitySubtext) {
+          this.humanLowQualitySubtext.textContent = "We can't get a clear reading right now. Try facing a light source.";
+        }
+      } else {
+        this.humanLowQualityBox.style.display = 'none';
+      }
+    }
+
+    // 5. Friendly day summary bar update
+    if (data.sessionTimeSplit) {
+      this.updateDaySummary(data.sessionTimeSplit);
+    }
+
+    return state;
+  }
+
+  renderSuggestions(suggestionsList, onAction) {
+    if (!this.suggestionsContainer) return;
+    this.suggestionsContainer.innerHTML = '';
+
+    suggestionsList.slice(0, 2).forEach((item) => {
+      const el = document.createElement('div');
+      el.className = 'intervention-row';
+      el.innerHTML = `
+        <div class="intervention-icon-wrap">${item.iconSvg || ''}</div>
+        <div class="intervention-body" style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 2px;">
+            <h4>${item.title}</h4>
+            <span class="stamp-tag">${item.category}</span>
+          </div>
+          <p>${item.description}</p>
+        </div>
+        ${
+          item.actionLabel
+            ? `<button class="btn btn-secondary btn-sm" style="align-self: center; margin-left: 8px;" data-action="${item.actionType}">${item.actionLabel}</button>`
+            : ''
+        }
+      `;
+
+      const btn = el.querySelector('button');
+      if (btn) {
+        btn.addEventListener('click', () => onAction(item));
+      }
+
+      this.suggestionsContainer.appendChild(el);
+    });
+  }
+
+  openHistoryModal(savedSessions) {
+    if (!this.historyModal) return;
+    this.historyModal.classList.add('open');
+
+    if (!this.savedSessionsList) return;
+    this.savedSessionsList.innerHTML = '';
+
+    if (!savedSessions || savedSessions.length === 0) {
+      this.savedSessionsList.innerHTML = `
+        <p style="text-align: center; color: var(--color-text-dim); padding: 1.5rem;">
+          No sessions logged yet. Complete a check to save your telemetry snapshot locally.
+        </p>
+      `;
+      return;
+    }
+
+    savedSessions.forEach((sess, idx) => {
+      const item = document.createElement('div');
+      item.className = 'suggestion-item';
+      item.innerHTML = `
+        <div style="flex: 1;">
+          <div style="display: flex; justify-content: space-between; font-weight: 600; font-size: 0.85rem;">
+            <span>Session #${savedSessions.length - idx} • ${new Date(sess.date).toLocaleDateString()} ${new Date(sess.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            <span style="color: var(--color-cyan);">${sess.durationSec}s duration</span>
+          </div>
+          <div style="display: flex; gap: 20px; font-size: 0.8rem; margin-top: 6px; color: var(--color-text-muted);">
+            <span>Avg HR: <strong style="color: #fff;">${sess.avgBpm} BPM</strong></span>
+            <span>Range: ${sess.minBpm} - ${sess.maxBpm} BPM</span>
+            <span>Avg Fatigue: <strong style="color: var(--color-crimson);">${sess.avgFatigue}%</strong></span>
+          </div>
+        </div>
+      `;
+      this.savedSessionsList.appendChild(item);
+    });
+  }
+
+  closeHistoryModal() {
+    if (this.historyModal) {
+      this.historyModal.classList.remove('open');
+    }
+  }
+
+  /**
+   * Open "How is this calculated?" Workload Breakdown Modal
+   */
+  openWorkloadModal(heuristics, score = null) {
+    if (!this.workloadModal) return;
+    this.workloadModal.classList.add('open');
+    if (heuristics) {
+      this.updateWorkloadModal(heuristics, score);
+    }
+  }
+
+  /**
+   * Close "How is this calculated?" Modal
+   */
+  closeWorkloadModal() {
+    if (this.workloadModal) {
+      this.workloadModal.classList.remove('open');
+    }
+  }
+
+  /**
+   * Update live meters, contributions, and disclaimer status in Workload Modal
+   */
+  updateWorkloadModal(heuristics, score = null) {
+    if (!heuristics) return;
+    const isReliable = heuristics.isReliable;
+    const workloadScore = score !== null ? score : (heuristics.workloadEstimate ?? heuristics.fatigueScore ?? '--');
+
+    // Score & Unreliable Fallback Message
+    if (this.modalWorkloadValRow && this.modalWorkloadUnreliableMsg) {
+      if (isReliable) {
+        this.modalWorkloadValRow.style.display = 'flex';
+        this.modalWorkloadUnreliableMsg.style.display = 'none';
+        if (this.modalWorkloadVal) this.modalWorkloadVal.textContent = workloadScore;
+      } else {
+        this.modalWorkloadValRow.style.display = 'none';
+        this.modalWorkloadUnreliableMsg.style.display = 'block';
+      }
+    }
+
+    if (this.modalWorkloadStatus) {
+      this.modalWorkloadStatus.textContent = heuristics.workloadStatus || (isReliable ? 'Optimal Focus' : 'Unreliable Signal');
+    }
+
+    // Confidence Level
+    const conf = heuristics.confidence ?? 0;
+    const confLevel = heuristics.confidenceLevel || (conf >= 75 ? 'HIGH' : conf >= 45 ? 'MODERATE' : 'LOW');
+    if (this.modalConfVal) this.modalConfVal.textContent = `${conf}%`;
+    if (this.modalConfBadge) {
+      this.modalConfBadge.textContent = `${confLevel.toUpperCase()} CONFIDENCE`;
+      this.modalConfBadge.className = `stamp-tag mono ${conf >= 75 ? 'good' : conf >= 45 ? 'caution' : 'alert'}`;
+    }
+    if (this.modalConfDetail) {
+      this.modalConfDetail.textContent = isReliable
+        ? 'Signal stability & illumination verified'
+        : (heuristics.unreliableMessage || 'Lighting or tracking unstable');
+    }
+
+    const c = heuristics.components;
+    if (!c) return;
+
+    // Component 1: Heart Rate (30%)
+    if (c.heartRate) {
+      if (this.compScoreHr) this.compScoreHr.textContent = `${c.heartRate.score}%`;
+      if (this.compContribHr) this.compContribHr.textContent = `contrib: ${c.heartRate.weightedScore} pts`;
+      if (this.compBarHr) {
+        this.compBarHr.style.transform = `scaleX(${Math.max(0, Math.min(1, c.heartRate.score / 100))})`;
+        this.compBarHr.style.backgroundColor = c.heartRate.score > 65 ? 'var(--alert)' : c.heartRate.score > 40 ? 'var(--caution)' : 'var(--text)';
+      }
+      if (this.compDetailHr) this.compDetailHr.textContent = c.heartRate.detail || 'Resting deviation';
+    }
+
+    // Component 2: Eye Closure (30%)
+    if (c.eyeClosure) {
+      if (this.compScoreEye) this.compScoreEye.textContent = `${c.eyeClosure.score}%`;
+      if (this.compContribEye) this.compContribEye.textContent = `contrib: ${c.eyeClosure.weightedScore} pts`;
+      if (this.compBarEye) {
+        this.compBarEye.style.transform = `scaleX(${Math.max(0, Math.min(1, c.eyeClosure.score / 100))})`;
+        this.compBarEye.style.backgroundColor = c.eyeClosure.score > 65 ? 'var(--alert)' : c.eyeClosure.score > 40 ? 'var(--caution)' : 'var(--text)';
+      }
+      if (this.compDetailEye) this.compDetailEye.textContent = c.eyeClosure.detail || 'PERCLOS & lag';
+    }
+
+    // Component 3: Blink Pattern (20%)
+    if (c.blinkPattern) {
+      if (this.compScoreBlink) this.compScoreBlink.textContent = `${c.blinkPattern.score}%`;
+      if (this.compContribBlink) this.compContribBlink.textContent = `contrib: ${c.blinkPattern.weightedScore} pts`;
+      if (this.compBarBlink) {
+        this.compBarBlink.style.transform = `scaleX(${Math.max(0, Math.min(1, c.blinkPattern.score / 100))})`;
+        this.compBarBlink.style.backgroundColor = c.blinkPattern.score > 65 ? 'var(--alert)' : c.blinkPattern.score > 40 ? 'var(--caution)' : 'var(--text)';
+      }
+      if (this.compDetailBlink) this.compDetailBlink.textContent = c.blinkPattern.detail || 'Cadence deviation';
+    }
+
+    // Component 4: Head Posture (20%)
+    if (c.headPosture) {
+      if (this.compScorePosture) this.compScorePosture.textContent = `${c.headPosture.score}%`;
+      if (this.compContribPosture) this.compContribPosture.textContent = `contrib: ${c.headPosture.weightedScore} pts`;
+      if (this.compBarPosture) {
+        this.compBarPosture.style.transform = `scaleX(${Math.max(0, Math.min(1, c.headPosture.score / 100))})`;
+        this.compBarPosture.style.backgroundColor = c.headPosture.score > 65 ? 'var(--alert)' : c.headPosture.score > 40 ? 'var(--caution)' : 'var(--text)';
+      }
+      if (this.compDetailPosture) this.compDetailPosture.textContent = c.headPosture.detail || 'Motion & pitch';
+    }
+
+    // Component 5: Session Duration (+Factor)
+    if (c.sessionDuration) {
+      if (this.compScoreDuration) this.compScoreDuration.textContent = `+${c.sessionDuration.addedPoints}`;
+      if (this.compDetailDuration) this.compDetailDuration.textContent = c.sessionDuration.detail || `${c.sessionDuration.elapsedMin} min elapsed`;
+    }
+  }
+}

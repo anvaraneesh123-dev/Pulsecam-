@@ -1,0 +1,1090 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PulseCam — Contactless Arterial & Ocular Wellness Telemetry</title>
+    <meta
+      name="description"
+      content="An editorial, 100% client-side physiological assistant estimating arterial pulse waveforms and ocular fatigue via webcam optics. Zero server uploads."
+    />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="stylesheet" href="/src/index.css" />
+  </head>
+  <body>
+    <!-- ====================================================================
+         CALM TOP ALERT BANNER (At most one alert at a time)
+         ==================================================================== -->
+    <aside id="top-alert-banner" class="top-alert-banner" style="display: none;" role="alert" aria-live="polite">
+      <div class="alert-banner-content">
+        <span class="alert-banner-pip"></span>
+        <p id="top-alert-message" class="top-alert-message">
+          Your eyes look tired. Try looking away for 20 seconds.
+        </p>
+        <div class="alert-banner-actions">
+          <button id="btn-alert-action" class="btn btn-alert-action" type="button" style="display: none;">
+            Start Check-in
+          </button>
+          <button id="btn-alert-snooze" class="btn btn-alert-snooze" type="button" title="Silence all alerts for 30 minutes">
+            Snooze (30 min)
+          </button>
+          <button id="btn-alert-dismiss" class="btn btn-alert-dismiss" type="button" title="Dismiss this alert">
+            Dismiss
+          </button>
+        </div>
+      </div>
+    </aside>
+    <!-- ====================================================================
+         VIEW 1: LANDING PAGE (Editorial Broadsheet Layout)
+         ==================================================================== -->
+    <section id="view-landing" class="view-section active">
+      <div class="broadsheet-wrapper">
+        <!-- Masthead -->
+        <header class="masthead-header">
+          <div class="masthead-topbar">
+            <span>Vol. I — Dispatch 01 / Ed. 2026</span>
+            <span>Remote Optical Physiology • In-Browser Sandboxing</span>
+            <span class="stamp-tag">Volatile RAM Only</span>
+          </div>
+
+          <div class="masthead-title-row">
+            <div class="masthead-brand">
+              Pulse<em>Cam</em>
+            </div>
+            <div class="masthead-subline">
+              A private optical instrument estimating heart-rate rhythms and ocular fatigue cues directly from your computer’s camera aperture.
+            </div>
+          </div>
+        </header>
+
+        <!-- Asymmetric Hero Grid -->
+        <div class="hero-editorial-grid">
+          <!-- Left Main Narrative Column -->
+          <div class="hero-main-column">
+            <div>
+              <div class="kicker" style="margin-bottom: 0.8rem;">
+                § Research in Contactless Photoplethysmography
+              </div>
+              <h1 class="hero-headline">
+                Arterial pulse rhythms and ocular fatigue, evaluated in <span class="italic-serif">private volatile memory</span>.
+              </h1>
+              <p class="hero-lead-text">
+                By measuring subtle diffuse optical absorption across capillary beds in the forehead, PulseCam isolates cardiac pulsatile variations in real time. Video frames exist exclusively in browser RAM for mere milliseconds—never recorded, never saved, and never transmitted across any network.
+              </p>
+              <div class="hero-cta-group">
+                <button id="btn-start-check" class="btn btn-primary">
+                  Begin Wellness Evaluation
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </button>
+                <a href="#features-anchor" class="btn btn-secondary">
+                  Examine Architecture
+                </a>
+              </div>
+            </div>
+
+            <div class="hero-manifesto-strip">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+              <span><strong>Guaranteed Client-Side Isolation:</strong> Neural models execute strictly within WebAssembly and WebGL on your local CPU/GPU. Zero telemetry or video egress.</span>
+            </div>
+          </div>
+
+          <!-- Right Specimen Card (Technical Docket) -->
+          <div class="hero-specimen-panel">
+            <div>
+              <div class="specimen-header">
+                <span class="kicker">Technical Docket</span>
+                <span class="stamp-tag accent">Specimen No. 01</span>
+              </div>
+              <h2 class="specimen-title" style="margin-bottom: 1.2rem;">Optical Physiology Protocol</h2>
+
+              <table class="specimen-table">
+                <tbody>
+                  <tr>
+                    <td>Optical Wavelength</td>
+                    <td>520–580 nm (Green Peak)</td>
+                  </tr>
+                  <tr>
+                    <td>Digital Filtering</td>
+                    <td>2nd-Order Butterworth Bandpass</td>
+                  </tr>
+                  <tr>
+                    <td>Passband Range</td>
+                    <td>0.75 – 3.00 Hz (45 – 180 BPM)</td>
+                  </tr>
+                  <tr>
+                    <td>Ocular Tracking</td>
+                    <td>6-Point EAR (Bi-Ocular)</td>
+                  </tr>
+                  <tr>
+                    <td>Micro-Sleep Threshold</td>
+                    <td>&gt; 400 ms Closure</td>
+                  </tr>
+                  <tr>
+                    <td>Remote Transmission</td>
+                    <td>0 Bytes (Strict Egress Block)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="specimen-quote-box">
+              <p style="color: var(--text); font-size: 0.8rem; line-height: 1.5;">
+                "A physical-grade wellness interface designed for sustained work sessions, built on principles of structural transparency and absolute data custody."
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Asymmetric Features Grid -->
+        <div id="features-anchor" class="features-broadsheet">
+          <div style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 1.5rem;">
+            <h2 class="features-section-title">Foundational Capabilities & Biological Cues</h2>
+            <span class="kicker">System Index § 01 – § 06</span>
+          </div>
+
+          <div class="features-editorial-grid">
+            <!-- Box 1 -->
+            <div class="feature-box">
+              <div class="feature-box-header">
+                <span class="feature-number">§ 01</span>
+                <svg class="feature-icon-svg" viewBox="0 0 24 24"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+              </div>
+              <h3>Remote Photoplethysmography</h3>
+              <p>
+                Extracts microscopic sub-dermal chrominance fluctuations caused by cardiac blood volume pulses across forehead capillary beds, deriving real-time BPM and HRV metrics.
+              </p>
+            </div>
+
+            <!-- Box 2 -->
+            <div class="feature-box">
+              <div class="feature-box-header">
+                <span class="feature-number">§ 02</span>
+                <svg class="feature-icon-svg" viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+              </div>
+              <h3>Ocular Kinematics & Blink Rate</h3>
+              <p>
+                Monitors 468+ facial landmarks to calculate dynamic Eye Aspect Ratio (EAR), detecting dry-eye screen staring, compensatory blink cascades, and micro-sleep events.
+              </p>
+            </div>
+
+            <!-- Box 3 -->
+            <div class="feature-box">
+              <div class="feature-box-header">
+                <span class="feature-number">§ 03</span>
+                <svg class="feature-icon-svg" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+              </div>
+              <h3>Zero-Egress Sandboxing</h3>
+              <p>
+                Neural models execute exclusively in browser WebAssembly memory. Not a single pixel, vector, or biometric coordinate is ever recorded or uploaded.
+              </p>
+            </div>
+
+            <!-- Box 4 -->
+            <div class="feature-box">
+              <div class="feature-box-header">
+                <span class="feature-number">§ 04</span>
+                <svg class="feature-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="M4.93 4.93l1.41 1.41"/><path d="M17.66 17.66l1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/></svg>
+              </div>
+              <h3>Environmental Signal Index</h3>
+              <p>
+                Continuous optical assessments evaluate ambient illumination lux, backlight flare, and head motion jitter to maintain high-confidence optical lock.
+              </p>
+            </div>
+
+            <!-- Box 5 -->
+            <div class="feature-box">
+              <div class="feature-box-header">
+                <span class="feature-number">§ 05</span>
+                <svg class="feature-icon-svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+              </div>
+              <h3>Autonomic Reset Protocols</h3>
+              <p>
+                Integrates the 20-20-20 visual relief rule and a minimalist 4-4-4-4 Box Breathing visual pacer to stimulate vagal nerve tone and support autonomic regulation.
+              </p>
+            </div>
+
+            <!-- Box 6 -->
+            <div class="feature-box">
+              <div class="feature-box-header">
+                <span class="feature-number">§ 06</span>
+                <svg class="feature-icon-svg" viewBox="0 0 24 24"><path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/></svg>
+              </div>
+              <h3>Confidential Session Trends</h3>
+              <p>
+                Session snapshots are archived exclusively in browser LocalStorage. Review historical cardiovascular and fatigue trends across days with total privacy.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 2: CONSENT SCREEN (Legal Charter / Archival Docket)
+         ==================================================================== -->
+    <section id="view-consent" class="view-section">
+      <div class="consent-docket-wrapper">
+        <div class="consent-docket-card">
+          <div class="docket-header">
+            <div class="docket-kicker">
+              <span class="kicker">Authorization Charter</span>
+              <span class="stamp-tag">Record No. PC-01</span>
+            </div>
+            <h2 class="docket-title">Device Access & Privacy Pledge</h2>
+            <p class="docket-subtext" style="font-size: 1.05rem; color: var(--text); font-weight: 600; margin-top: 8px;">
+              Your video never leaves your device.
+            </p>
+            <p class="docket-subtext" style="font-size: 0.92rem; color: var(--text-muted); margin-top: 4px;">
+              PulseCam is a wellness assistant, not a medical diagnostic tool.
+            </p>
+          </div>
+
+          <div class="docket-checklist">
+            <div class="docket-check-item">
+              <input type="checkbox" id="consent-check-local" checked disabled />
+              <label for="consent-check-local" class="docket-check-label">
+                <strong>Your video never leaves your device.</strong>
+                <span>All computer vision and signal processing occurs strictly in local volatile RAM on a hidden canvas. Zero video frames or biometric measurements are saved or transmitted across any network.</span>
+              </label>
+            </div>
+
+            <div class="docket-check-item">
+              <input type="checkbox" id="consent-check-wellness" />
+              <label for="consent-check-wellness" class="docket-check-label">
+                <strong>PulseCam is a wellness assistant, not a medical diagnostic tool.</strong>
+                <span>I understand that PulseCam provides lifestyle wellness and fatigue trends, and does not provide medical services.</span>
+              </label>
+            </div>
+
+            <div class="docket-check-item">
+              <input type="checkbox" id="consent-check-bgwatch" checked disabled />
+              <label for="consent-check-bgwatch" class="docket-check-label">
+                <strong>Background Watch</strong>
+                <span>PulseCam will briefly check your eyes now and then while you work. Nothing is recorded.</span>
+              </label>
+            </div>
+
+            <div class="docket-check-item">
+              <input type="checkbox" id="consent-check-camera" />
+              <label for="consent-check-camera" class="docket-check-label">
+                <strong>Authorize Local Webcam (640x480, 30fps)</strong>
+                <span>I grant permission to access the laptop camera for real-time local optical landmarking and pulse extraction.</span>
+              </label>
+            </div>
+          </div>
+
+          <div id="consent-error-msg" class="docket-error" style="display: none;"></div>
+
+          <div class="docket-actions">
+            <button id="btn-consent-back" class="btn btn-secondary">Return to Overview</button>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <input type="file" id="input-test-video" accept="video/mp4,video/webm" style="display: none;" />
+              <button id="btn-consent-video" class="btn btn-subtle" type="button" title="Load an MP4/WebM video file for testing instead of webcam">
+                Replay Video File
+              </button>
+              <button id="btn-consent-demo" class="btn btn-subtle" type="button">
+                Preview in Demo Mode
+              </button>
+              <button id="btn-consent-proceed" class="btn btn-primary" disabled>
+                Authorize & Enter Workspace
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         VIEW 3: MAIN DASHBOARD (Laboratory Broadsheet Instrument)
+         ==================================================================== -->
+    <section id="view-dashboard" class="view-section">
+      <div class="human-dashboard-wrapper">
+        <!-- Instrument Minimal Masthead -->
+        <header class="human-nav">
+          <div class="human-brand-group">
+            <div class="human-brand-title">
+              Pulse<em>Cam</em>
+            </div>
+            <!-- Visible Camera Active Indicator -->
+            <div class="stamp-tag" id="camera-active-tag" style="display: flex; align-items: center; gap: 6px;">
+              <span id="camera-active-pip" class="status-pip good"></span>
+              <span id="camera-active-text">Camera active</span>
+            </div>
+            <!-- Small session timer -->
+            <div class="stamp-tag session-timer-pill" style="display: flex; align-items: center; gap: 6px;">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+              <span>Session: <strong id="session-timer-text" style="color: var(--text); margin-left: 2px;">00:00</strong></span>
+            </div>
+          </div>
+
+          <div class="human-nav-actions">
+            <!-- Start Quick Check-in (60s) Button -->
+            <button id="btn-start-quick-checkin" class="btn btn-primary btn-sm" title="Start a 60-second screen-lit check-in">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              Quick Check-in (60s)
+            </button>
+            <!-- Stop Button that releases camera stream hardware -->
+            <button id="btn-stop-camera" class="btn btn-secondary btn-sm" style="border-color: var(--alert); color: var(--alert);" title="Release camera stream hardware">
+              <span class="status-pip alert" style="width: 5px; height: 5px;"></span>
+              Stop Camera
+            </button>
+            <button id="btn-toggle-pause" class="btn btn-secondary btn-sm">
+              Pause
+            </button>
+            <button id="btn-recalibrate" class="btn btn-secondary btn-sm" title="Re-calibrate baseline">
+              Recalibrate
+            </button>
+            <button id="btn-toggle-pip" class="btn btn-secondary btn-sm" title="Always-on-top mini window (Picture-in-Picture)">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><rect x="12" y="9" width="8" height="6" rx="1"/></svg>
+              Mini Window
+            </button>
+            <button id="btn-open-settings" class="btn btn-secondary btn-sm" title="Alert preferences & audio chime">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+              Settings
+            </button>
+            <button id="btn-exit-dashboard" class="btn btn-danger btn-sm">
+              Exit
+            </button>
+          </div>
+        </header>
+
+        <!-- Browser Background Processing Capability Notice (Visible only if browser lacks MediaStreamTrackProcessor) -->
+        <div id="bg-compatibility-notice" class="bg-compatibility-banner" style="display: none;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          <span>Background monitoring needs Chrome or Edge. Continuing with foreground monitoring.</span>
+        </div>
+
+        <!-- Main Human Interface Layout -->
+        <div class="human-wellness-layout">
+          <!-- 1. Large Status Headline & Plain Language Wellness Card -->
+          <div class="human-wellness-card">
+            <div class="human-status-badge-row">
+              <span id="human-status-pip" class="human-status-pip state-calm"></span>
+              <span id="human-status-tag" class="human-status-tag">Mindful State</span>
+            </div>
+
+            <!-- One large status headline in plain language with a calm color -->
+            <h1 id="human-status-headline" class="human-status-headline state-calm">
+              You're doing great
+            </h1>
+
+            <!-- One short supporting sentence -->
+            <p id="human-supporting-text" class="human-supporting-text">
+              You've been working for 48 minutes.
+            </p>
+
+            <!-- One clear suggested action button -->
+            <div class="human-action-row">
+              <button id="btn-suggested-action" class="btn btn-action-suggested">
+                <svg class="action-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
+                </svg>
+                <span id="suggested-action-label">Keep going</span>
+              </button>
+            </div>
+
+            <!-- Plain-wording Low Quality Advisory Box (Never shows numbers) -->
+            <div id="human-low-quality-box" class="human-low-quality-box" style="display: none;">
+              <div class="low-quality-header">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>
+                </svg>
+                <strong id="human-low-quality-title">Lighting is insufficient for reliable estimation.</strong>
+              </div>
+              <p id="human-low-quality-subtext" class="low-quality-desc">
+                We can't get a clear reading right now. Try facing a light source.
+              </p>
+              <ul class="low-quality-tips">
+                <li>Face a window or lamp for even illumination</li>
+                <li>Raise screen brightness in dim spaces</li>
+                <li>Avoid strong backlight behind you</li>
+              </ul>
+              <div style="margin-top: 14px;">
+                <button id="btn-recheck-lighting" class="btn btn-secondary btn-sm">
+                  Check lighting again
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Bottom Grid: 5. Simple Friendly Day Summary & Gentle Camera Mirror -->
+          <div class="human-wellness-lower-grid">
+            <!-- Day Summary Card -->
+            <div class="day-summary-card">
+              <div class="day-summary-header">
+                <div>
+                  <h3 class="day-summary-title">Today's Rhythm</h3>
+                  <p class="day-summary-desc">Session flow split across mindful states</p>
+                </div>
+              </div>
+
+              <!-- 5. Soft horizontal bar showing session split into calm / busy / tired periods (no axes, no numbers, no gridlines) -->
+              <div id="day-summary-bar" class="day-summary-bar" aria-label="Session summary rhythm bar">
+                <div id="day-bar-calm" class="day-bar-segment calm" style="flex: 1;" title="Calm period"></div>
+                <div id="day-bar-busy" class="day-bar-segment busy" style="flex: 0;" title="Busy period"></div>
+                <div id="day-bar-tired" class="day-bar-segment tired" style="flex: 0;" title="Tired period"></div>
+              </div>
+
+              <!-- Friendly Legend: No axes, no numbers, no gridlines! -->
+              <div class="day-summary-legend">
+                <div class="legend-item"><span class="legend-pip calm"></span> Calm</div>
+                <div class="legend-item"><span class="legend-pip busy"></span> Busy</div>
+                <div class="legend-item"><span class="legend-pip tired"></span> Tired</div>
+              </div>
+            </div>
+
+            <!-- Gentle Camera Mirror Card -->
+            <div class="gentle-camera-card">
+              <div class="camera-mirror-frame">
+                <video id="webcam-video" class="camera-feed-video" playsinline muted autoplay></video>
+                <canvas id="hud-canvas" class="camera-feed-canvas" width="640" height="480"></canvas>
+                <div class="camera-mirror-overlay">
+                  <div class="stamp-tag" id="camera-feed-badge">
+                    <span class="status-pip good" id="camera-feed-pip"></span>
+                    <span id="camera-feed-text">Camera active</span>
+                  </div>
+                </div>
+              </div>
+              <div class="camera-mirror-controls">
+                <button id="btn-stop-camera-footer" class="btn btn-secondary btn-sm" style="border-color: var(--alert); color: var(--alert);">
+                  Stop Camera
+                </button>
+                <span class="camera-mirror-privacy-note">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                  Local private mirror
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Mandatory Footer Line -->
+          <footer class="wellness-footer">
+            <p class="wellness-footer-text">
+              <strong>PulseCam is a wellness assistant, not a medical diagnostic tool.</strong>
+              <span class="footer-divider">•</span>
+              <span>Your video never leaves your device.</span>
+              <span class="footer-divider">•</span>
+              <button id="btn-open-details" class="footer-link-btn" type="button" title="View technical telemetry (For the curious)">
+                Details
+              </button>
+            </p>
+          </footer>
+        </div>
+      </div>
+    </section>
+
+    <!-- ====================================================================
+         HISTORY & ARCHIVAL MODAL
+         ==================================================================== -->
+    <div id="history-modal" class="modal-backdrop">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h3 style="font-size: 1.35rem; font-weight: 500;">Local Session Records</h3>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">Stored solely within private browser LocalStorage.</p>
+          </div>
+          <button id="btn-close-history" class="modal-close">&times;</button>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <h4 style="font-size: 0.82rem; margin-bottom: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">
+            Session Trend Printout (BPM vs. Fatigue)
+          </h4>
+          <canvas id="trend-canvas" width="600" height="140" style="width: 100%; height: 140px; background: #FFFFFF; border: 1px solid var(--line); display: block;"></canvas>
+          <div style="display: flex; gap: 16px; font-size: 0.72rem; margin-top: 6px; font-family: var(--font-mono);">
+            <span style="color: var(--accent);">■ Pulse Rate (BPM)</span>
+            <span style="color: var(--caution);">■ Fatigue Index (%)</span>
+          </div>
+        </div>
+
+        <div id="saved-sessions-list" style="display: flex; flex-direction: column; gap: 8px;">
+          <!-- Dynamically populated past sessions -->
+        </div>
+
+        <div style="display: flex; justify-content: space-between; margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--line);">
+          <button id="btn-clear-history" class="btn btn-danger btn-sm">Clear Archive</button>
+          <button id="btn-done-history" class="btn btn-secondary btn-sm">Close Docket</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         CALIBRATION ONLY: FULL-SCREEN NEUTRAL-WHITE DIFFUSE ILLUMINATION PANEL
+         Acts as a physical photographic key light from the laptop screen to ensure
+         uniform diffuse skin reflectance for baseline calibration.
+         Clearly labeled as an optical calibration step.
+         ==================================================================== -->
+    <!-- ====================================================================
+         FULL-SCREEN GUIDED CALIBRATION OVERLAY (2-Min / 5-Min Session)
+         ==================================================================== -->
+    <div id="calibration-white-panel" class="calibration-white-overlay" style="display: none;">
+      <div class="calib-white-card">
+        <div class="calib-white-badge-row">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="status-pip caution"></span>
+            <span class="stamp-tag accent">Guided Personal Baseline Calibration</span>
+          </div>
+          <span class="stamp-tag mono" id="calib-white-timer" style="font-size: 0.85rem; font-weight: 600;">02:00</span>
+        </div>
+
+        <h2 class="calib-white-title">
+          Let's learn what's normal for you
+        </h2>
+
+        <!-- Duration Configuration Selector -->
+        <div class="calib-duration-bar">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted);">Session Duration:</span>
+            <div class="calib-duration-selector">
+              <button id="btn-duration-2m" class="calib-duration-btn active" data-duration="120000">2 min (Standard)</button>
+              <button id="btn-duration-5m" class="calib-duration-btn" data-duration="300000">5 min (Precision)</button>
+            </div>
+          </div>
+          <button id="btn-extend-calib" class="btn btn-secondary btn-sm" style="font-size: 0.72rem; padding: 3px 8px;" title="Extend current session to 5 minutes for deeper precision">
+            + Extend to 5 min
+          </button>
+        </div>
+
+        <div class="calib-white-instruction-box">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="flex-shrink: 0; color: var(--accent);">
+            <circle cx="12" cy="12" r="4"/><path d="M12 2v2"/><path d="M12 20v2"/><path d="m4.93 4.93 1.41 1.41"/><path d="m17.66 17.66 1.41 1.41"/><path d="M2 12h2"/><path d="M20 12h2"/><path d="m6.34 17.66-1.41 1.41"/><path d="m19.07 4.93-1.41 1.41"/>
+          </svg>
+          <div>
+            <div class="calib-white-instruction-main" id="calib-white-stage">
+              Sit comfortably and look at the screen for 2 minutes.
+            </div>
+            <div class="calib-white-instruction-sub" id="calib-white-tip">
+              We are learning your natural blink pace and stillness so future suggestions fit you. Keep screen brightness up for soft lighting.
+            </div>
+          </div>
+        </div>
+
+        <div class="calib-white-meter-box">
+          <div class="calib-white-meter-header">
+            <span style="font-weight: 500;">Baseline Convergence Progress:</span>
+            <strong id="calib-white-pct" class="mono">0%</strong>
+          </div>
+          <div class="calib-white-track">
+            <div id="calib-white-fill" class="calib-white-bar" style="transform: scaleX(0);"></div>
+          </div>
+
+          <!-- Real-time Convergence Sample Counters -->
+          <div class="calib-samples-grid">
+            <div class="calib-sample-chip">
+              <span class="calib-sample-chip-label">HR Samples</span>
+              <span class="calib-sample-chip-val" id="calib-sample-hr">0</span>
+            </div>
+            <div class="calib-sample-chip">
+              <span class="calib-sample-chip-label">Blinks / EAR</span>
+              <span class="calib-sample-chip-val" id="calib-sample-blink">0</span>
+            </div>
+            <div class="calib-sample-chip">
+              <span class="calib-sample-chip-label">Motion Checks</span>
+              <span class="calib-sample-chip-val" id="calib-sample-motion">0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="calib-white-footer">
+          <div class="calib-white-security-note">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>
+            <span>Only your personal baseline is saved on this device. No video is ever recorded.</span>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-dismiss-white-panel" class="btn btn-secondary btn-sm" title="Dismiss white panel and calibrate in room ambient light">
+              Calibrate in Ambient Light
+            </button>
+            <button id="btn-abort-calibration" class="btn btn-secondary btn-sm" style="border-color: var(--alert); color: var(--alert);" title="Cancel calibration">
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         HUMAN ACTION MODAL (20-Second Eye Rest / 2-Minute Break)
+         ==================================================================== -->
+    <div id="human-action-modal" class="modal-backdrop">
+      <div class="modal-content action-modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 id="action-modal-title" style="font-size: 1.35rem; font-weight: 500; font-family: var(--font-heading);">
+              Look away for 20 seconds
+            </h3>
+            <p id="action-modal-subtitle" style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+              Give your visual system a gentle, restorative pause.
+            </p>
+          </div>
+          <button id="btn-close-action-modal" class="modal-close" aria-label="Close action modal">&times;</button>
+        </div>
+
+        <div class="action-modal-body">
+          <div class="action-pacer-wrap">
+            <div id="action-pacer-visual" class="action-pacer-visual">
+              <span id="action-pacer-timer" class="action-pacer-timer">20</span>
+              <span class="action-pacer-unit">seconds</span>
+            </div>
+          </div>
+          <p id="action-modal-prompt" class="action-modal-prompt">
+            Look away at an object in the distance to relax your eye focusing muscles.
+          </p>
+        </div>
+
+        <div class="action-modal-footer">
+          <button id="btn-action-modal-done" class="btn btn-primary">
+            Done & Resume
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         SETTINGS & PREFERENCES MODAL (Sound Chime & Snooze Controls)
+         ==================================================================== -->
+    <div id="settings-modal" class="modal-backdrop">
+      <div class="modal-content settings-modal-card">
+        <div class="modal-header">
+          <div>
+            <h3 style="font-size: 1.35rem; font-weight: 500; font-family: var(--font-heading);">
+              Alert Preferences & Comfort
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+              Quiet, mindful suggestions tuned for your session.
+            </p>
+          </div>
+          <button id="btn-close-settings" class="modal-close" aria-label="Close settings">&times;</button>
+        </div>
+
+        <div class="settings-modal-body">
+          <!-- Audio chime setting -->
+          <div class="settings-group-item">
+            <label class="settings-switch-label" for="setting-sound-chime">
+              <input type="checkbox" id="setting-sound-chime" class="settings-checkbox" />
+              <div style="margin-left: 10px;">
+                <strong style="color: var(--text); font-size: 0.95rem;">Gentle alert chime</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Play a quiet, gentle tone when a wellness reminder appears. Silent by default.
+                </p>
+              </div>
+            </label>
+            <div style="margin-top: 10px; margin-left: 30px;">
+              <button id="btn-test-chime" class="btn btn-secondary btn-sm" type="button">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                  <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                </svg>
+                Play test tone
+              </button>
+            </div>
+          </div>
+
+          <!-- Snooze status setting -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Alert delivery status</strong>
+                <p id="settings-snooze-status" style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Active (delivering friendly, short suggestions)
+                </p>
+              </div>
+              <button id="btn-resume-alerts" class="btn btn-secondary btn-sm" type="button" style="display: none;">
+                Resume alerts
+              </button>
+            </div>
+          </div>
+
+          <!-- Background Watch Setting (On / Off) -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Background watch</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  PulseCam will briefly check your eyes now and then while you work. Nothing is recorded.
+                </p>
+              </div>
+              <label class="toggle-switch">
+                <input type="checkbox" id="setting-bg-watch" checked />
+                <span class="toggle-slider"></span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Periodic Check-in Reminders Setting (Off / Every 30 min / Every hour) -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Quick Check-in reminders</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Receive a gentle reminder to take a 60-second check-in. Never launches automatically.
+                </p>
+              </div>
+              <select id="setting-checkin-reminder" class="settings-select" style="font-family: var(--font-body); font-size: 0.82rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;">
+                <option value="off">Off</option>
+                <option value="30">Every 30 min</option>
+                <option value="60">Every hour</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Reminder Gentleness (Gentle / Normal / Off) -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Reminder gentleness</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Control the tone and delivery style of mindful suggestions.
+                </p>
+              </div>
+              <select id="setting-reminder-gentleness" class="settings-select" style="font-family: var(--font-body); font-size: 0.82rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;">
+                <option value="gentle">Gentle</option>
+                <option value="normal" selected>Normal</option>
+                <option value="off">Off</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Quiet Hours -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Quiet hours</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Silence notifications during focus hours or evenings.
+                </p>
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="time" id="setting-quiet-start" value="22:00" style="padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 0.8rem;" />
+                <span style="font-size: 0.8rem; color: var(--text-muted);">to</span>
+                <input type="time" id="setting-quiet-end" value="08:00" style="padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--text); font-size: 0.8rem;" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Break Length -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Break length</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Preferred duration for recommended eye and posture breaks.
+                </p>
+              </div>
+              <select id="setting-break-length" class="settings-select" style="font-family: var(--font-body); font-size: 0.82rem; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); cursor: pointer;">
+                <option value="2" selected>2 minutes</option>
+                <option value="5">5 minutes</option>
+                <option value="10">10 minutes</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Pause for 1 Hour Action -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--text); font-size: 0.95rem;">Temporary pause</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Pause all telemetry and reminders for 1 hour.
+                </p>
+              </div>
+              <button id="btn-pause-1hr" class="btn btn-secondary btn-sm" type="button">
+                Pause for 1 hour
+              </button>
+            </div>
+          </div>
+
+          <!-- Delete My Data Action (Phase 5) -->
+          <div class="settings-group-item" style="margin-top: 1.4rem; padding-top: 1.2rem; border-top: 1px solid var(--line);">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px;">
+              <div>
+                <strong style="color: var(--alert); font-size: 0.95rem;">Delete my data</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">
+                  Permanently erase your calibrated baseline, session logs, and settings from this browser.
+                </p>
+              </div>
+              <button id="btn-delete-all-data" class="btn btn-secondary btn-sm" style="color: var(--alert); border-color: rgba(185, 28, 28, 0.35);" type="button">
+                Delete my data
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-modal-footer" style="margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <span style="font-size: 0.76rem; color: var(--text-muted);">
+            PulseCam is a wellness assistant, not a medical diagnostic tool.
+          </span>
+          <button id="btn-done-settings" class="btn btn-primary btn-sm" type="button">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         "FOR THE CURIOUS" TECHNICAL DETAILS PANEL (Closed by default)
+         ==================================================================== -->
+    <div id="details-modal" class="modal-backdrop">
+      <div class="modal-content details-modal-card">
+        <div class="modal-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="stamp-tag accent">For the curious</span>
+              <span class="stamp-tag mono" id="details-live-badge">Telemetry Active</span>
+            </div>
+            <h3 style="font-size: 1.4rem; font-weight: 500; font-family: var(--font-heading);">
+              Technical Signals & Methods
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+              A transparent look at optical signal extraction, personal baselines, and heuristic weights.
+            </p>
+          </div>
+          <button id="btn-close-details" class="modal-close" aria-label="Close details">&times;</button>
+        </div>
+
+        <div class="details-modal-body">
+          <!-- Section 1: Signal Quality & Optical Environment -->
+          <div class="details-section-box">
+            <div class="details-section-header">
+              <span class="details-section-title">1. Signal Quality & Environmental Optics</span>
+              <span id="details-sqi-badge" class="stamp-tag good">High Confidence</span>
+            </div>
+            <div class="details-metrics-grid">
+              <div class="details-metric-item">
+                <span class="details-metric-label">Face Tracking</span>
+                <strong id="details-face-val" class="details-metric-val">Locked (468 pts)</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Illumination</span>
+                <strong id="details-lighting-val" class="details-metric-val">Even Diffuse</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Motion Stability</span>
+                <strong id="details-motion-val" class="details-metric-val">Still</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Composite SQI</span>
+                <strong id="details-sqi-val" class="details-metric-val">High (85)</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 2: Heart-Rate Trend -->
+          <div class="details-section-box">
+            <div class="details-section-header">
+              <span class="details-section-title">2. Heart-Rate Rhythm & Autonomic Trend</span>
+              <span id="details-hr-badge" class="stamp-tag">Optical Pulse</span>
+            </div>
+            <div class="details-metrics-grid">
+              <div class="details-metric-item">
+                <span class="details-metric-label">Estimated Rate</span>
+                <strong id="details-hr-bpm" class="details-metric-val">-- BPM</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Resting Baseline</span>
+                <strong id="details-hr-base" class="details-metric-val">-- BPM</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Deviation (z-score)</span>
+                <strong id="details-hr-zscore" class="details-metric-val">0.0σ</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Optical Confidence</span>
+                <strong id="details-hr-conf" class="details-metric-val">--%</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 3: Blink & Ocular Information -->
+          <div class="details-section-box">
+            <div class="details-section-header">
+              <span class="details-section-title">3. Blink Dynamics & Ocular Kinematics</span>
+              <span id="details-blink-badge" class="stamp-tag">Ocular Tracking</span>
+            </div>
+            <div class="details-metrics-grid">
+              <div class="details-metric-item">
+                <span class="details-metric-label">Blink Frequency</span>
+                <strong id="details-blink-rate" class="details-metric-val">-- / min</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Closure (PERCLOS)</span>
+                <strong id="details-blink-perclos" class="details-metric-val">--%</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Aperture (EAR)</span>
+                <strong id="details-blink-ear" class="details-metric-val">-- / --</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Cadence State</span>
+                <strong id="details-blink-state" class="details-metric-val">Natural Focus</strong>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 4: Workload Score Breakdown with Heuristic Weights -->
+          <div class="details-section-box">
+            <div class="details-section-header">
+              <span class="details-section-title">4. Workload Score Breakdown</span>
+              <span id="details-workload-badge" class="stamp-tag">0–100 Estimate</span>
+            </div>
+            <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 1.2rem;">
+              <span style="font-size: 2.2rem; font-weight: 500; font-family: var(--font-heading);" id="details-workload-num">--</span>
+              <span style="font-size: 0.9rem; color: var(--text-muted);" id="details-workload-subtext">Resting / Low Workload</span>
+            </div>
+
+            <div class="details-breakdown-list">
+              <!-- Component A: 30% HR -->
+              <div class="breakdown-row">
+                <div class="breakdown-meta">
+                  <strong>Heart-Rate Trend (30% weight)</strong>
+                  <span id="details-comp-hr-val" class="mono">-- pts</span>
+                </div>
+                <div class="breakdown-track">
+                  <div id="details-comp-hr-bar" class="breakdown-fill" style="width: 20%;"></div>
+                </div>
+                <p id="details-comp-hr-desc" class="breakdown-desc">Autonomic pulse variation relative to personal resting baseline.</p>
+              </div>
+
+              <!-- Component B: 30% Eye-Closure -->
+              <div class="breakdown-row">
+                <div class="breakdown-meta">
+                  <strong>Eye-Closure Duration (30% weight)</strong>
+                  <span id="details-comp-eye-val" class="mono">-- pts</span>
+                </div>
+                <div class="breakdown-track">
+                  <div id="details-comp-eye-bar" class="breakdown-fill" style="width: 15%;"></div>
+                </div>
+                <p id="details-comp-eye-desc" class="breakdown-desc">Eyelid micro-droop, closure duration, and rolling closure fraction.</p>
+              </div>
+
+              <!-- Component C: 20% Blink Pattern -->
+              <div class="breakdown-row">
+                <div class="breakdown-meta">
+                  <strong>Blink-Pattern Change (20% weight)</strong>
+                  <span id="details-comp-blink-val" class="mono">-- pts</span>
+                </div>
+                <div class="breakdown-track">
+                  <div id="details-comp-blink-bar" class="breakdown-fill" style="width: 15%;"></div>
+                </div>
+                <p id="details-comp-blink-desc" class="breakdown-desc">Screen fixation stare or rapid compensatory ocular flutter.</p>
+              </div>
+
+              <!-- Component D: 20% Head Posture -->
+              <div class="breakdown-row">
+                <div class="breakdown-meta">
+                  <strong>Head Movement & Posture (20% weight)</strong>
+                  <span id="details-comp-posture-val" class="mono">-- pts</span>
+                </div>
+                <div class="breakdown-track">
+                  <div id="details-comp-posture-bar" class="breakdown-fill" style="width: 10%;"></div>
+                </div>
+                <p id="details-comp-posture-desc" class="breakdown-desc">Head restlessness and downward forward pitch slump.</p>
+              </div>
+
+              <!-- Component E: Duration Factor -->
+              <div class="breakdown-row" style="border-bottom: none; margin-bottom: 0; padding-bottom: 0;">
+                <div class="breakdown-meta">
+                  <strong>Session Duration Factor (Accumulated)</strong>
+                  <span id="details-comp-dur-val" class="mono">+0.0 pts</span>
+                </div>
+                <p id="details-comp-dur-desc" class="breakdown-desc">Gradual accumulation over continuous unbroken focus.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Section 5: "How is this calculated?" Explanation -->
+          <div class="details-explanation-box">
+            <h4 style="font-size: 1.05rem; font-family: var(--font-heading); margin-bottom: 8px; color: var(--text);">
+              How is this calculated?
+            </h4>
+            <p style="font-size: 0.88rem; line-height: 1.6; color: var(--text); margin-bottom: 10px;">
+              PulseCam evaluates deviations from your personal resting baseline rather than comparing you against a generic universal standard. Real-time deviations are normalized into standard scores (<span class="mono">z-scores</span>) for cardiovascular rhythm, eye-closure duration, blink cadence, and posture pitch.
+            </p>
+            <p style="font-size: 0.88rem; line-height: 1.6; color: var(--text); margin-bottom: 12px;">
+              These scores are synthesized using the heuristic weights above (30% heart-rate trend, 30% eye closure, 20% blink pattern, 20% head posture, plus elapsed session duration), clamped between 0 and 100, and smoothly filtered over time.
+            </p>
+            <div class="details-disclaimer-card">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink: 0; color: var(--text); margin-top: 1px;">
+                <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
+              </svg>
+              <span><strong>Heuristic Formulation:</strong> These weights are heuristic estimates, not clinically validated. PulseCam is designed to encourage mindful screen habits and pacing.</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-modal-footer" style="margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <span style="font-size: 0.76rem; color: var(--text-muted);">
+            Local volatile memory only • Zero video leaves your device
+          </span>
+          <button id="btn-done-details" class="btn btn-primary btn-sm" type="button">
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Friendly Action Toast Notification -->
+    <div id="human-toast" class="human-toast" style="display: none;">
+      <span id="human-toast-icon">✨</span>
+      <span id="human-toast-text">Great stretch! Resuming focus.</span>
+    </div>
+
+    <!-- ====================================================================
+         QUICK CHECK-IN MODE (60 Seconds Fullscreen Uniform White Key Light)
+         Hides video completely; frames processed on hidden canvas.
+         ==================================================================== -->
+    <div id="quick-checkin-overlay" class="quick-checkin-fullscreen" style="display: none;">
+      <!-- Top Bar: Small "Camera on" indicator & Stop button always visible -->
+      <header class="checkin-top-bar">
+        <div class="stamp-tag" style="background: rgba(47, 107, 79, 0.08); border-color: rgba(47, 107, 79, 0.3);">
+          <span class="status-pip good"></span>
+          <span style="font-weight: 500; color: var(--good);">Camera on</span>
+        </div>
+        
+        <!-- Timer progress bar (no numbers, calm progress fill) -->
+        <div class="checkin-progress-wrap" aria-label="Check-in progress">
+          <div id="checkin-progress-fill" class="checkin-progress-fill"></div>
+        </div>
+
+        <button id="btn-stop-checkin" class="btn btn-secondary btn-sm" style="border-color: var(--alert); color: var(--alert);" type="button" title="Stop check-in">
+          <span class="status-pip alert" style="width: 5px; height: 5px;"></span>
+          Stop Check-in
+        </button>
+      </header>
+
+      <!-- Center Guidance Area -->
+      <main class="checkin-center-stage">
+        <!-- Initial brightness prompt -->
+        <div id="checkin-brightness-prompt" class="checkin-brightness-banner">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <span>For a better reading, turn your screen brightness up.</span>
+        </div>
+
+        <!-- Soft Oval Alignment Guide (Muted brown -> Forest green when aligned. No landmarks, no video, no numbers) -->
+        <div class="checkin-oval-wrapper">
+          <div id="checkin-guide-oval" class="checkin-guide-oval not-aligned" aria-label="Face alignment guide">
+          </div>
+        </div>
+
+        <!-- Short Plain Text Guidance -->
+        <p id="checkin-guidance-text" class="checkin-guidance-text">
+          Center your face in the oval
+        </p>
+
+        <!-- Insufficient lighting advisory (hidden by default) -->
+        <div id="checkin-lighting-advisory" class="checkin-lighting-advisory" style="display: none;">
+          <p style="font-weight: 500; color: var(--alert); margin-bottom: 2px;">Lighting is insufficient for reliable estimation.</p>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Try facing a lamp or window for soft frontal light.</p>
+        </div>
+      </main>
+
+      <footer class="checkin-footer-note">
+        <span>Uniform screen key light • No video ever leaves your device</span>
+      </footer>
+    </div>
+
+    <!-- Application Script Entrypoint -->
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
