@@ -298,7 +298,16 @@ async function executeFrame(frameSource, isVideoFrame, timestamp, width, height,
   }
 
   // 1. Lighting Diagnostics evaluated on the facial ROI with detection confidence
-  const lightingResult = lighting.evaluate(offscreenCtx, faceDetected ? faceBox : null, faceConfidence);
+  const lightingResult = lighting.evaluate(
+    offscreenCtx,
+    faceDetected ? faceBox : null,
+    faceConfidence,
+    {
+      mode: isCheckinMode ? 'checkin' : 'normal',
+      whiteScreenVisible: isCheckinMode,
+      isWarmedUp: isCheckinMode
+    }
+  );
 
   // 2. Head Motion Threshold Gating:
   // "Only pass a frame to the pulse pipeline if movement is below a threshold; mark other frames as "noisy" and discard them."
@@ -641,8 +650,13 @@ self.onmessage = async (event) => {
     isMeasurementActive = Boolean(event.data.active);
   } else if (type === 'SET_CHECKIN_MODE') {
     isCheckinMode = Boolean(event.data.active);
-    if (isCheckinMode) {
-      rppg.reset();
-    }
+    rppg.reset();
+    blink.reset();
+    lighting.resetHistory();
+  } else if (type === 'RESET_CHECKIN') {
+    rppg.reset();
+    blink.reset();
+    lighting.resetHistory();
+    motionTracker.reset();
   }
 };

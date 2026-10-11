@@ -321,7 +321,7 @@
             <!-- Start Quick Check-in (60s) Button -->
             <button id="btn-start-quick-checkin" class="btn btn-primary btn-sm" title="Start a 60-second screen-lit check-in">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              Quick Check-in (60s)
+              Check now
             </button>
             <!-- Stop Button that releases camera stream hardware -->
             <button id="btn-stop-camera" class="btn btn-secondary btn-sm" style="border-color: var(--alert); color: var(--alert);" title="Release camera stream hardware">
@@ -374,12 +374,16 @@
             </p>
 
             <!-- One clear suggested action button -->
-            <div class="human-action-row">
+            <div class="human-action-row" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
               <button id="btn-suggested-action" class="btn btn-action-suggested">
                 <svg class="action-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                   <path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>
                 </svg>
                 <span id="suggested-action-label">Keep going</span>
+              </button>
+              <button id="btn-main-check-now" class="btn btn-secondary" title="Run a 60-second check-in right now" style="padding: 12px 20px; font-weight: 500;">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right: 6px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Check now
               </button>
             </div>
 
@@ -411,11 +415,14 @@
           <div class="human-wellness-lower-grid">
             <!-- Day Summary Card -->
             <div class="day-summary-card">
-              <div class="day-summary-header">
+              <div class="day-summary-header" style="display: flex; justify-content: space-between; align-items: baseline;">
                 <div>
                   <h3 class="day-summary-title">Today's Rhythm</h3>
                   <p class="day-summary-desc">Session flow split across mindful states</p>
                 </div>
+                <button id="btn-open-daily-recap" class="btn btn-secondary btn-sm" type="button" title="View calm daily pacing summary">
+                  Daily Recap
+                </button>
               </div>
 
               <!-- 5. Soft horizontal bar showing session split into calm / busy / tired periods (no axes, no numbers, no gridlines) -->
@@ -1009,6 +1016,40 @@
               <span><strong>Heuristic Formulation:</strong> These weights are heuristic estimates, not clinically validated. PulseCam is designed to encourage mindful screen habits and pacing.</span>
             </div>
           </div>
+
+          <!-- Section 6: Quick Check-in & Optical Diagnostics (Phase 1 Debugging) -->
+          <div class="details-section-box" style="margin-top: 14px;">
+            <div class="details-section-header">
+              <span class="details-section-title">6. Quick Check-in & Optical Diagnostics</span>
+              <span id="details-checkin-diag-badge" class="stamp-tag">Camera Stream Active</span>
+            </div>
+            <div class="details-metrics-grid">
+              <div class="details-metric-item">
+                <span class="details-metric-label">Video ReadyState</span>
+                <strong id="details-diag-readystate" class="details-metric-val">4 (HAVE_ENOUGH_DATA)</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Frame Geometry</span>
+                <strong id="details-diag-dimensions" class="details-metric-val">640 × 480</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Face Luminance</span>
+                <strong id="details-diag-luminance" class="details-metric-val">-- lux</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Active Threshold</span>
+                <strong id="details-diag-threshold" class="details-metric-val">22 lux (Screen Light)</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">White Key Light</span>
+                <strong id="details-diag-white-screen" class="details-metric-val">Visible</strong>
+              </div>
+              <div class="details-metric-item">
+                <span class="details-metric-label">Auto-Exposure</span>
+                <strong id="details-diag-exposure" class="details-metric-val">Settled (&gt;2s)</strong>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div class="details-modal-footer" style="margin-top: 1.8rem; padding-top: 1rem; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
@@ -1058,30 +1099,268 @@
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/><path d="M12 1v2"/><path d="M12 21v2"/><path d="M4.22 4.22l1.42 1.42"/><path d="M18.36 18.36l1.42 1.42"/><path d="M1 12h2"/><path d="M21 12h2"/><path d="M4.22 19.78l1.42-1.42"/><path d="M18.36 5.64l1.42-1.42"/>
           </svg>
-          <span>For a better reading, turn your screen brightness up.</span>
+          <span id="checkin-banner-text">For a better reading, turn your screen brightness up.</span>
         </div>
 
         <!-- Soft Oval Alignment Guide (Muted brown -> Forest green when aligned. No landmarks, no video, no numbers) -->
         <div class="checkin-oval-wrapper">
           <div id="checkin-guide-oval" class="checkin-guide-oval not-aligned" aria-label="Face alignment guide">
+            <!-- Live gently updating heart rate value during last 20-30s once signal stabilizes -->
+            <div id="checkin-live-pulse-container" class="checkin-live-pulse-wrap" style="display: none;">
+              <span id="checkin-live-pulse-val" class="checkin-live-pulse-val">--</span>
+              <span class="checkin-live-pulse-lbl">bpm</span>
+            </div>
           </div>
         </div>
 
-        <!-- Short Plain Text Guidance -->
+        <!-- Short Plain Text Guidance / Live Light & Alignment Coach -->
         <p id="checkin-guidance-text" class="checkin-guidance-text">
           Center your face in the oval
         </p>
 
-        <!-- Insufficient lighting advisory (hidden by default) -->
+        <!-- Insufficient lighting advisory (Never hard-blocking, gives Try again & Continue anyway) -->
         <div id="checkin-lighting-advisory" class="checkin-lighting-advisory" style="display: none;">
-          <p style="font-weight: 500; color: var(--alert); margin-bottom: 2px;">Lighting is insufficient for reliable estimation.</p>
-          <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Try facing a lamp or window for soft frontal light.</p>
+          <p style="font-weight: 500; color: var(--alert); margin-bottom: 6px;">
+            Lighting is insufficient for reliable estimation. Try raising your screen brightness or facing a lamp.
+          </p>
+          <div style="display: flex; gap: 8px; justify-content: center; margin-top: 8px; flex-wrap: wrap;">
+            <button id="btn-checkin-retry-light" class="btn btn-secondary btn-sm" type="button">
+              Try again
+            </button>
+            <button id="btn-checkin-continue-anyway" class="btn btn-subtle btn-sm" type="button">
+              Continue anyway (less accurate)
+            </button>
+          </div>
         </div>
       </main>
 
       <footer class="checkin-footer-note">
         <span>Uniform screen key light • No video ever leaves your device</span>
       </footer>
+    </div>
+
+    <!-- ====================================================================
+         CHECK-IN CANCELLED MODAL (Clean cancel when user presses Esc or cancels)
+         ==================================================================== -->
+    <div id="checkin-cancelled-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-content action-modal-card" style="max-width: 440px;">
+        <div class="modal-header">
+          <div>
+            <h3 style="font-size: 1.35rem; font-weight: 500; font-family: var(--font-heading);">
+              Check-in stopped
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+              Session cancelled cleanly.
+            </p>
+          </div>
+          <button id="btn-close-cancelled-modal" class="modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="action-modal-body" style="padding: 1.2rem 0;">
+          <p style="font-size: 0.95rem; color: var(--text); line-height: 1.5;">
+            Whenever you're ready, you can start a new 60-second screen-lit check-in.
+          </p>
+        </div>
+        <div class="action-modal-footer" style="display: flex; gap: 10px; justify-content: flex-end;">
+          <button id="btn-cancelled-dismiss" class="btn btn-secondary btn-sm" type="button">Close</button>
+          <button id="btn-cancelled-restart" class="btn btn-primary btn-sm" type="button">Start again</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         CHECK-IN RESULT MODAL (Friendly result card, baseline comparison)
+         ==================================================================== -->
+    <div id="checkin-result-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-content checkin-result-card" style="max-width: 520px;">
+        <div class="modal-header">
+          <div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+              <span class="stamp-tag accent">Quick Check-in</span>
+              <span id="checkin-result-conf-badge" class="stamp-tag good">Good</span>
+            </div>
+            <h3 style="font-size: 1.45rem; font-weight: 500; font-family: var(--font-heading);">
+              Check-in Result
+            </h3>
+          </div>
+          <button id="btn-close-checkin-result" class="modal-close" aria-label="Close result">&times;</button>
+        </div>
+
+        <div class="checkin-result-body" style="padding: 1.2rem 0;">
+          <!-- Normal / Clear Reading -->
+          <div id="checkin-result-clear-box">
+            <div style="display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; flex-wrap: wrap;">
+              <span id="checkin-result-bpm-headline" style="font-size: 2.1rem; font-family: var(--font-heading); font-weight: 500; color: var(--text);">
+                About 74 beats per minute
+              </span>
+              <span class="stamp-tag">Estimate</span>
+            </div>
+            <p id="checkin-result-comparison" style="font-size: 1.05rem; color: var(--text); font-weight: 500; margin-bottom: 14px;">
+              Right around your usual
+            </p>
+          </div>
+
+          <!-- Low Confidence / Unclear Reading -->
+          <div id="checkin-result-unclear-box" style="display: none; padding: 8px 0 14px 0;">
+            <p style="font-size: 1.05rem; color: var(--text); font-weight: 500; margin-bottom: 6px;">
+              We couldn't get a clear reading.
+            </p>
+            <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5;">
+              Try again with more light on your face or raise your screen brightness.
+            </p>
+          </div>
+
+          <p style="font-size: 0.82rem; color: var(--text-muted); margin-bottom: 16px;">
+            Camera-based estimates can be off by a few beats.
+          </p>
+
+          <!-- Reset Break Offer (Shown if fatigue is elevated) -->
+          <div id="checkin-result-reset-offer" style="display: none; background: var(--surface-alt); padding: 14px 18px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; gap: 14px; flex-wrap: wrap;">
+              <div>
+                <strong style="font-size: 0.95rem; color: var(--text);">Feeling strained?</strong>
+                <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">Take a 2-minute reset with guided breathing.</p>
+              </div>
+              <button id="btn-result-take-reset" class="btn btn-secondary btn-sm" type="button">
+                Take a 2-minute reset
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="checkin-result-footer" style="padding-top: 14px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+          <div style="display: flex; flex-direction: column; gap: 2px; font-size: 0.75rem; color: var(--text-muted);">
+            <span>PulseCam is a wellness assistant, not a medical diagnostic tool.</span>
+            <span>Your video never leaves your device.</span>
+          </div>
+          <button id="btn-done-checkin-result" class="btn btn-primary btn-sm" type="button">Done</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         RESET BREAK MODAL (2-Minute Reset with Before & After Comparison)
+         ==================================================================== -->
+    <div id="reset-break-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-content reset-break-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <div>
+            <span class="stamp-tag accent" style="margin-bottom: 4px;">Autonomic Reset</span>
+            <h3 style="font-size: 1.4rem; font-weight: 500; font-family: var(--font-heading);">
+              Take a 2-minute reset
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+              Follow the breathing circle to calm your nervous system.
+            </p>
+          </div>
+          <button id="btn-close-reset-break" class="modal-close" aria-label="Close reset break">&times;</button>
+        </div>
+
+        <div class="reset-break-body" style="padding: 1.5rem 0; text-align: center;">
+          <div class="breathing-circle-wrapper" style="margin: 0 auto 20px auto; width: 160px; height: 160px; display: flex; align-items: center; justify-content: center;">
+            <div id="breathing-circle" class="breathing-circle">
+              <span id="breathing-text" class="breathing-text">Breathe in</span>
+            </div>
+          </div>
+          <div>
+            <span id="reset-break-timer" class="stamp-tag mono" style="font-size: 0.95rem; font-weight: 600;">02:00</span>
+          </div>
+
+          <!-- Comparison result after reset -->
+          <div id="reset-comparison-result" style="display: none; margin-top: 18px; text-align: center;">
+            <h4 id="reset-comparison-headline" style="font-size: 1.15rem; font-weight: 500; color: var(--good); margin-bottom: 4px;">
+              Your heart rate settled a little
+            </h4>
+            <p id="reset-comparison-sub" style="font-size: 0.88rem; color: var(--text-muted);">
+              Nice reset!
+            </p>
+          </div>
+        </div>
+
+        <div class="reset-break-footer" style="padding-top: 12px; border-top: 1px solid var(--line); display: flex; justify-content: flex-end;">
+          <button id="btn-done-reset-break" class="btn btn-primary btn-sm" type="button">Done & Resume</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         EYE REST MODAL (20-Second Guided Look Away)
+         ==================================================================== -->
+    <div id="eye-rest-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-content eye-rest-card" style="background: var(--bg); text-align: center; max-width: 440px;">
+        <div class="modal-header" style="border: none; padding-bottom: 0;">
+          <button id="btn-close-eye-rest" class="modal-close" aria-label="Close eye rest" style="margin-left: auto;">&times;</button>
+        </div>
+
+        <div class="eye-rest-body" style="padding: 20px 16px;">
+          <div class="eye-rest-ring-wrap" style="margin: 0 auto 20px auto; width: 120px; height: 120px; position: relative; display: flex; align-items: center; justify-content: center;">
+            <svg class="eye-rest-svg" width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="54" class="eye-rest-track" />
+              <circle cx="60" cy="60" r="54" id="eye-rest-circle" class="eye-rest-indicator" />
+            </svg>
+            <span id="eye-rest-countdown" class="eye-rest-countdown-text">20</span>
+          </div>
+
+          <h3 style="font-size: 1.35rem; font-family: var(--font-heading); font-weight: 500; color: var(--text); margin-bottom: 6px;">
+            Look at something far away.
+          </h3>
+          <p style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5;">
+            Relax your gaze at an object in the distance to rest your eye muscles.
+          </p>
+        </div>
+
+        <div class="eye-rest-footer" style="padding-top: 12px; border: none; display: flex; justify-content: center;">
+          <button id="btn-done-eye-rest" class="btn btn-secondary btn-sm" type="button">Resume</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ====================================================================
+         DAILY RECAP MODAL (Calm End-of-Day Pacing & Check-in History)
+         ==================================================================== -->
+    <div id="daily-recap-modal" class="modal-backdrop" style="display: none;">
+      <div class="modal-content daily-recap-card" style="max-width: 540px;">
+        <div class="modal-header">
+          <div>
+            <span class="stamp-tag accent" style="margin-bottom: 4px;">Today's Pacing</span>
+            <h3 style="font-size: 1.4rem; font-weight: 500; font-family: var(--font-heading);">
+              Daily Recap
+            </h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 2px;">
+              A quiet, local reflection on your session rhythms.
+            </p>
+          </div>
+          <button id="btn-close-daily-recap" class="modal-close" aria-label="Close daily recap">&times;</button>
+        </div>
+
+        <div class="daily-recap-body" style="padding: 1.2rem 0;">
+          <div class="daily-recap-summary-box" style="background: var(--surface-alt); padding: 18px; border-radius: 8px; border: 1px solid var(--line); margin-bottom: 18px;">
+            <h4 id="daily-recap-headline" style="font-size: 1.12rem; font-family: var(--font-heading); font-weight: 500; color: var(--text); margin-bottom: 6px;">
+              Today: 0 check-ins, 0 breaks, session just started.
+            </h4>
+            <p id="daily-recap-insight" style="font-size: 0.88rem; color: var(--text-muted); line-height: 1.5;">
+              PulseCam learns your best focus patterns over several days of use.
+            </p>
+          </div>
+
+          <h5 style="font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-muted); margin-bottom: 10px;">
+            Recent Check-ins Today
+          </h5>
+          <div id="daily-recap-history-list" class="daily-recap-history-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+            <!-- Populated dynamically -->
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 14px;">
+            <button id="btn-clear-checkin-history" class="btn btn-secondary btn-sm" style="color: var(--alert); border-color: rgba(185, 28, 28, 0.3);" type="button">
+              Clear check-in history
+            </button>
+          </div>
+        </div>
+
+        <div class="daily-recap-footer" style="padding-top: 12px; border-top: 1px solid var(--line); display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 0.75rem; color: var(--text-muted);">Stored solely on your device.</span>
+          <button id="btn-done-daily-recap" class="btn btn-primary btn-sm" type="button">Close</button>
+        </div>
+      </div>
     </div>
 
     <!-- Application Script Entrypoint -->

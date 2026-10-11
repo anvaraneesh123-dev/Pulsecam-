@@ -11,6 +11,7 @@ export class PipManager {
   constructor(options = {}) {
     this.onTogglePause = options.onTogglePause || null;
     this.onStop = options.onStop || null;
+    this.onStartCheckin = options.onStartCheckin || null;
 
     this.pipWindow = null;
     this.fallbackWidget = null;
@@ -52,6 +53,7 @@ export class PipManager {
             <p class="pip-widget-message" id="pip-widget-msg">You seem calm and focused</p>
           </div>
           <div class="pip-widget-actions">
+            <button type="button" class="btn btn-sm btn-pip btn-pip-checkin" id="pip-widget-checkin">Check now</button>
             <button type="button" class="btn btn-sm btn-pip" id="pip-widget-pause">Pause</button>
             <button type="button" class="btn btn-sm btn-pip btn-pip-stop" id="pip-widget-stop">Stop</button>
           </div>
@@ -61,6 +63,14 @@ export class PipManager {
 
       const closeBtn = el.querySelector('#pip-widget-close');
       if (closeBtn) closeBtn.onclick = () => this.close();
+
+      const checkinBtn = el.querySelector('#pip-widget-checkin');
+      if (checkinBtn) {
+        checkinBtn.onclick = () => {
+          window.focus();
+          if (this.onStartCheckin) this.onStartCheckin();
+        };
+      }
 
       const pauseBtn = el.querySelector('#pip-widget-pause');
       if (pauseBtn) {
@@ -257,10 +267,21 @@ export class PipManager {
         <p class="status-message" id="pip-status-text">You seem calm and focused</p>
       </div>
       <div class="pip-actions">
+        <button type="button" class="btn-pip btn-checkin" id="pip-action-checkin">Check now</button>
         <button type="button" class="btn-pip" id="pip-action-pause">Pause</button>
         <button type="button" class="btn-pip btn-stop" id="pip-action-stop">Stop</button>
       </div>
     `;
+
+    const btnCheckin = doc.getElementById('pip-action-checkin');
+    if (btnCheckin) {
+      btnCheckin.onclick = () => {
+        try {
+          window.focus();
+        } catch (_) {}
+        if (this.onStartCheckin) this.onStartCheckin();
+      };
+    }
 
     const btnPause = doc.getElementById('pip-action-pause');
     if (btnPause) {

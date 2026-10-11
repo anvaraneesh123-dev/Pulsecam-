@@ -8,7 +8,7 @@
 export class LightingChecker {
   constructor() {
     this.history = [];
-    this.maxHistory = 15;
+    this.maxHistory = 60; // ~2 seconds at 30 fps
 
     // 3-Second Pre-Flight Verification State
     this.preflightActive = false;
@@ -17,6 +17,13 @@ export class LightingChecker {
     this.preflightSamples = [];
     this.preflightPassed = false;
     this.preflightCompleted = false;
+  }
+
+  /**
+   * Reset temporal history (e.g. when entering or exiting Quick Check-in mode)
+   */
+  resetHistory() {
+    this.history = [];
   }
 
   /**
@@ -103,9 +110,9 @@ export class LightingChecker {
    * Evaluate lighting quality from a canvas 2D context, facial ROI, and face detection confidence
    * @param {CanvasRenderingContext2D} ctx - Canvas context containing the frame
    * @param {Object} [roi] - Bounding box {x, y, width, height} of the face ROI
-   * @param {number} [faceConfidence=1.0] - Face detection confidence (0.0 to 1.0)
+   * @param {Object} [options={}] - Optional evaluation configuration (e.g. mode: 'checkin')
    */
-  evaluate(ctx, roi = null, faceConfidence = 1.0) {
+  evaluate(ctx, roi = null, faceConfidence = 1.0, options = {}) {
     if (!ctx) {
       return this._createResult({
         isValid: false,
@@ -187,42 +194,56 @@ export class LightingChecker {
     const stdDev = Math.sqrt(variance);
     const contrast = maxLum - minLum;
 
-    // Temporal smoothing for stability
+    // Detect completely black/blank camera delivery
+    const isBlackFrame = meanLuminance < 3 && contrast < 4;
+
+    // Temporal smoothing for stability over ~2 seconds
     this.history.push(meanLuminance);
     if (this.history.length > this.maxHistory) this.history.shift();
     const smoothedLum = this.history.reduce((a, b) => a + b, 0) / this.history.length;
 
     // Face visibility criteria
-    const isFaceVisible = Boolean(hasRoi && faceConfidence >= 0.5);
+    const isFaceVisible = Boolean(hasRoi && faceConfidence >= 0.45 && !isBlackFrame);
 
-    // Illumination thresholds
-    const isTooDark = smoothedLum < 50;
-    const isOverexposed = smoothedLum > 215 || (smoothedLum > 195 && (clippedBright / (count || 1)) > 0.20);
-    const isVarianceAdequate = variance >= 15;
+    // Adaptive illumination thresholds based on operating mode:
+    // In Quick Check-in mode, the screen is the primary light source; use permissive threshold
+    const mode = options.mode || 'normal';
+    const isCheckinMode = mode === 'checkin';
+    const darkThreshold = isCheckinMode ? 22 : 45;
+    const brightThreshold = isCheckinMode ? 232 : 215;
+    const minVariance = isCheckinMode ? 7 : 12;
 
-    // Complete validity test
-    const isValid = isFaceVisible && !isTooDark && !isOverexposed && isVarianceAdequate;
+    const isTooDark = smoothedLum < darkThreshold;
+    const isOverexposed = smoothedLum > brightThreshold || (smoothedLum > (brightThreshold - 20) && (clippedBright / (count || 1)) > 0.25);
+    const isVarianceAdequate = variance >= minVariance;
+
+    // Complete validity test (allowing permissive bypass if explicitly forced)
+    const isValid = !isBlackFrame && isFaceVisible && !isTooDark && !isOverexposed && isVarianceAdequate;
 
     let level = 'optimal';
     let score = 95;
     let message = 'Optimal ambient illumination for optical pulse tracking.';
 
-    if (!isFaceVisible) {
+    if (isBlackFrame) {
+      level = 'black-frame';
+      score = 0;
+      message = 'Camera delivered black frame. Verifying stream pipeline...';
+    } else if (!isFaceVisible) {
       level = 'no-face';
       score = 0;
       message = 'Face is not clearly visible to the camera aperture.';
     } else if (isTooDark) {
       level = 'too-dark';
-      score = Math.max(10, Math.round((smoothedLum / 50) * 50));
-      message = 'Face illumination is too dark (mean luminance below 50 lux).';
+      score = Math.max(10, Math.round((smoothedLum / darkThreshold) * 50));
+      message = `Face illumination is low (${Math.round(smoothedLum)} / ${darkThreshold} threshold).`;
     } else if (isOverexposed) {
       level = 'too-bright';
-      score = Math.max(15, Math.round((1 - (smoothedLum - 215) / 40) * 45));
-      message = 'Face illumination is overexposed or high optical glare detected (mean luminance > 215 lux).';
-    } else if (smoothedLum < 75) {
+      score = Math.max(15, Math.round((1 - (smoothedLum - brightThreshold) / 40) * 45));
+      message = 'Face illumination is overexposed or high optical glare detected.';
+    } else if (smoothedLum < (darkThreshold + 25)) {
       level = 'dim';
       score = 75;
-      message = 'Slightly subdued lighting; optical pulse lock is acceptable.';
+      message = 'Subdued screen lighting; optical pulse lock is acceptable.';
     } else if (smoothedLum > 190) {
       level = 'bright';
       score = 85;
@@ -247,7 +268,21 @@ export class LightingChecker {
       isTooDark,
       isOverexposed,
       isVarianceAdequate,
-      message
+      isBlackFrame,
+      message,
+      // Debug telemetry metadata
+      debug: {
+        mode,
+        darkThreshold,
+        brightThreshold,
+        frameWidth: canvasWidth,
+        frameHeight: canvasHeight,
+        meanLuminance: Math.round(smoothedLum * 10) / 10,
+        whiteScreenVisible: Boolean(options.whiteScreenVisible),
+        isWarmedUp: Boolean(options.isWarmedUp),
+        sampleCount: count,
+        variance: Math.round(variance * 10) / 10
+      }
     });
   }
 
@@ -266,6 +301,8 @@ export class LightingChecker {
       isTooDark: params.isTooDark || false,
       isOverexposed: params.isOverexposed || false,
       isVarianceAdequate: params.isVarianceAdequate !== undefined ? params.isVarianceAdequate : true,
+      isBlackFrame: Boolean(params.isBlackFrame),
+      debug: params.debug || {},
       message: params.message,
       // Exact user-specified notification text:
       exactNotice: 'Lighting is insufficient for reliable estimation.',

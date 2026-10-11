@@ -3060,6 +3060,155 @@ p {
   }
 }
 
+/* ==========================================================================
+   Quick Check-in Upgrades & Standout Features
+   ========================================================================== */
+
+/* Camera video element visibility guarantee (never display: none or visibility: hidden) */
+#webcam-video {
+  visibility: visible !important;
+}
+
+/* Live gently updating heart rate value inside check-in oval */
+.checkin-live-pulse-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fadeInStaggered 300ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.checkin-live-pulse-val {
+  font-family: var(--font-heading);
+  font-size: 2.4rem;
+  font-weight: 500;
+  color: #2F6B4F;
+  line-height: 1;
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.checkin-live-pulse-lbl {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* 2-Minute Reset Break Breathing Circle (5s In, 5s Out) */
+.breathing-circle-wrapper {
+  position: relative;
+}
+
+.breathing-circle {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: rgba(47, 107, 79, 0.12);
+  border: 2px solid var(--good);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: breatheInOut 10s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  transform-origin: center center;
+}
+
+.breathing-text {
+  font-family: var(--font-heading);
+  font-size: 1.15rem;
+  font-weight: 500;
+  color: var(--good);
+}
+
+@keyframes breatheInOut {
+  0% {
+    transform: scale(0.85);
+    background: rgba(47, 107, 79, 0.08);
+  }
+  50% {
+    transform: scale(1.22);
+    background: rgba(47, 107, 79, 0.22);
+  }
+  100% {
+    transform: scale(0.85);
+    background: rgba(47, 107, 79, 0.08);
+  }
+}
+
+/* Eye Rest Guided Look Away Ring */
+.eye-rest-svg {
+  transform: rotate(-90deg);
+}
+
+.eye-rest-track {
+  fill: none;
+  stroke: rgba(107, 84, 68, 0.15);
+  stroke-width: 6;
+}
+
+.eye-rest-indicator {
+  fill: none;
+  stroke: var(--good);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-dasharray: 339.29;
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.eye-rest-countdown-text {
+  position: absolute;
+  font-family: var(--font-mono);
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* History chips in Daily Recap */
+.checkin-history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.85rem;
+}
+
+.checkin-history-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.checkin-history-time {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.checkin-history-bpm {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.checkin-history-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px 6px;
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+
+.checkin-history-delete-btn:hover {
+  color: var(--alert);
+  background: rgba(185, 28, 28, 0.08);
+}
+
 
 
 

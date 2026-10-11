@@ -51,7 +51,8 @@ class PulseCamApp {
         );
         this.updatePipState();
       },
-      onStop: () => this.stopMonitoringSession()
+      onStop: () => this.stopMonitoringSession(),
+      onStartCheckin: () => this.startQuickCheckin()
     });
 
     // Page Visibility API
@@ -88,11 +89,24 @@ class PulseCamApp {
     this.sessionStartTime = 0;
     this.sessionTimerInterval = null;
 
-    // Quick Check-in Mode State (60s Screen-Lit Optical Check)
+    // Quick Check-in Mode State Machine ('IDLE', 'PREPARING', 'MEASURING', 'RESULT')
+    this.checkinState = 'IDLE';
     this.isQuickCheckin = false;
     this.checkinStartTime = 0;
-    this.checkinDuration = 60000; // 60 seconds
+    this.checkinMeasurementStartTime = 0;
+    this.checkinWarmupDuration = 2000; // 2 seconds warm-up for auto-exposure to settle
+    this.checkinDuration = 60000; // 60 seconds measurement
+    this.checkinWarmedUp = false;
+    this.checkinForceContinue = false;
     this.wakeLockSentinel = null;
+    this.checkinEscHandler = null;
+    this.checkinFullscreenHandler = null;
+
+    // Background Watch distance nudge & smart reminders
+    this.consecutiveCloseFrames = 0;
+    this.lastCloseNudgeTime = 0;
+    this.lastSmartReminderTime = 0;
+    this.sustainedHighFatigueWindows = 0;
 
     if (this.alertSystem) {
       this.alertSystem.onCheckinRequested = () => this.startQuickCheckin();
@@ -417,12 +431,24 @@ class PulseCamApp {
       btnExit.onclick = () => this.stopMonitoringSession();
     }
 
-    // Quick Check-in Triggers
+    // Quick Check-in Triggers & Modals
     if (this.ui.btnStartQuickCheckin) {
       this.ui.btnStartQuickCheckin.onclick = () => this.startQuickCheckin();
     }
+    if (this.ui.btnMainCheckNow) {
+      this.ui.btnMainCheckNow.onclick = () => this.startQuickCheckin();
+    }
     if (this.ui.btnStopCheckin) {
-      this.ui.btnStopCheckin.onclick = () => this.stopQuickCheckin(true);
+      this.ui.btnStopCheckin.onclick = () => this.cancelQuickCheckin(true);
+    }
+    if (this.ui.btnCheckinRetryLight) {
+      this.ui.btnCheckinRetryLight.onclick = () => this.retryCheckin();
+    }
+    if (this.ui.btnCheckinContinueAnyway) {
+      this.ui.btnCheckinContinueAnyway.onclick = () => this.continueCheckinAnyway();
+    }
+    if (this.ui.btnOpenDailyRecap) {
+      this.ui.btnOpenDailyRecap.onclick = () => this.ui.openDailyRecap(this.sessionTimeSplit);
     }
 
     // HUD Toggles
@@ -569,33 +595,39 @@ class PulseCamApp {
 
   /**
    * Start 60-Second Screen-Lit Quick Check-in Mode
-   * Hides live video completely (frames processed on hidden canvas).
-   * Enters fullscreen and fills screen with uniform neutral white (#FFFFFF) key light.
+   * Implements clean state machine: IDLE -> PREPARING -> MEASURING -> RESULT -> IDLE.
+   * On every start, fully resets all buffers, filters, worker state, and timers.
    */
   async startQuickCheckin() {
-    if (this.isQuickCheckin) return;
+    if (this.checkinState === 'PREPARING' || this.checkinState === 'MEASURING') return;
 
     if (!this.isMonitoring || !this.camera.isRunning) {
       await this.startMonitoringSession(this.isDemoSession);
     }
 
+    // 1. Clean state machine reset
+    this.checkinState = 'PREPARING';
     this.isQuickCheckin = true;
     this.checkinStartTime = performance.now();
+    this.checkinMeasurementStartTime = 0;
+    this.checkinWarmedUp = false;
+    this.checkinForceContinue = false;
 
-    // 1. Activate rPPG pulse extraction in worker specifically for Check-in
+    // 2. Full reset of worker analysis state, buffers, and filters
+    this.worker.postMessage({ type: 'RESET_CHECKIN' });
     this.worker.postMessage({ type: 'SET_CHECKIN_MODE', active: true });
 
-    // 2. Request Screen Wake Lock
+    // 3. Request Screen Wake Lock & lock camera constraints if supported
     this.requestWakeLock();
-
-    // 3. Lock camera exposure, white balance, and focus to manual if supported
     this.camera.lockCameraConstraints();
 
-    // 4. Enter fullscreen and display uniform neutral-white overlay
+    // 4. Enter fullscreen or fall back gracefully to full-window white overlay
     this.ui.setQuickCheckinActive(true);
     this.enterFullscreen(this.ui.quickCheckinOverlay);
 
+    // 5. Reset UI progress & guidance
     this.ui.updateCheckinProgress(0);
+    this.ui.updateCheckinLivePulse(null);
     this.ui.updateCheckinAlignment({
       faceDetected: false,
       isCentered: false,
@@ -605,16 +637,56 @@ class PulseCamApp {
       guidanceText: "For a better reading, turn your screen brightness up.",
       isLightingInvalid: false
     });
+
+    // 6. Bind Esc key and fullscreen exit listeners to cancel cleanly
+    this.cleanupCheckinListeners();
+
+    this.checkinEscHandler = (e) => {
+      if (e.key === 'Escape') {
+        if (this.checkinState === 'PREPARING' || this.checkinState === 'MEASURING') {
+          this.cancelQuickCheckin(true);
+        }
+      }
+    };
+    window.addEventListener('keydown', this.checkinEscHandler);
+
+    this.checkinFullscreenHandler = () => {
+      if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+        if (this.checkinState === 'PREPARING' || this.checkinState === 'MEASURING') {
+          this.cancelQuickCheckin(true);
+        }
+      }
+    };
+    document.addEventListener('fullscreenchange', this.checkinFullscreenHandler);
+    document.addEventListener('webkitfullscreenchange', this.checkinFullscreenHandler);
+  }
+
+  cleanupCheckinListeners() {
+    if (this.checkinEscHandler) {
+      window.removeEventListener('keydown', this.checkinEscHandler);
+      this.checkinEscHandler = null;
+    }
+    if (this.checkinFullscreenHandler) {
+      document.removeEventListener('fullscreenchange', this.checkinFullscreenHandler);
+      document.removeEventListener('webkitfullscreenchange', this.checkinFullscreenHandler);
+      this.checkinFullscreenHandler = null;
+    }
   }
 
   /**
-   * Stop / abort Quick Check-in mode
+   * Cancel / abort Quick Check-in mode
+   * Fully releases Wake Lock, exits fullscreen, clears listeners, and returns to IDLE.
    */
-  stopQuickCheckin(wasAborted = true) {
-    if (!this.isQuickCheckin) return;
-    this.isQuickCheckin = false;
+  cancelQuickCheckin(showCancelledModal = true) {
+    if (this.checkinState === 'IDLE') return;
 
-    // 1. Deactivate rPPG in worker
+    this.checkinState = 'IDLE';
+    this.isQuickCheckin = false;
+    this.checkinWarmedUp = false;
+
+    this.cleanupCheckinListeners();
+
+    // 1. Deactivate worker rPPG mode and reset
     this.worker.postMessage({ type: 'SET_CHECKIN_MODE', active: false });
 
     // 2. Unlock camera constraints & release wake lock
@@ -622,24 +694,111 @@ class PulseCamApp {
     this.releaseWakeLock();
     this.exitFullscreen();
 
-    // 3. Hide checkin overlay
+    // 3. Hide checkin overlay and live pulse
     this.ui.setQuickCheckinActive(false);
+    this.ui.updateCheckinLivePulse(null);
 
-    if (wasAborted) {
-      this.ui.showToast('⏹️', 'Check-in stopped.');
+    if (showCancelledModal) {
+      this.ui.showCheckinCancelled(() => this.startQuickCheckin());
     }
   }
 
   /**
-   * Finish 60-second Quick Check-in and generate plain-language result
+   * Stop quick checkin backwards compatibility alias
+   */
+  stopQuickCheckin(wasAborted = true) {
+    this.cancelQuickCheckin(wasAborted);
+  }
+
+  /**
+   * Retry check-in when lighting warning is displayed
+   */
+  retryCheckin() {
+    if (this.ui.checkinLightingAdvisory) {
+      this.ui.checkinLightingAdvisory.style.display = 'none';
+    }
+    this.cancelQuickCheckin(false);
+    this.startQuickCheckin();
+  }
+
+  /**
+   * Continue check-in anyway with lower confidence
+   */
+  continueCheckinAnyway() {
+    this.checkinForceContinue = true;
+    if (this.ui.checkinLightingAdvisory) {
+      this.ui.checkinLightingAdvisory.style.display = 'none';
+    }
+    this.ui.showToast('ℹ️', 'Continuing check-in. Results will reflect estimated confidence.');
+  }
+
+  /**
+   * Finish 60-second Quick Check-in and show friendly heart rate result card
    */
   completeQuickCheckin() {
-    this.stopQuickCheckin(false);
+    this.checkinState = 'RESULT';
+    this.isQuickCheckin = false;
 
+    this.cleanupCheckinListeners();
+    this.worker.postMessage({ type: 'SET_CHECKIN_MODE', active: false });
+    this.camera.unlockCameraConstraints();
+    this.releaseWakeLock();
+    this.exitFullscreen();
+    this.ui.setQuickCheckinActive(false);
+    this.ui.updateCheckinLivePulse(null);
+
+    const curBpm = this.smoothBPM.current;
+    const rppgConf = this.targetConfidence !== undefined ? this.targetConfidence : 80;
     const fatigue = Math.round(this.smoothFatigue.current);
-    const blinkRate = Math.round(this.smoothBlinkRate.current);
     const perclos = this.smoothPERCLOS.current;
+    const baseBpm = this.activeBaseline?.heartRate?.mean ? Math.round(this.activeBaseline.heartRate.mean) : 72;
 
+    const isSignalReliable = (rppgConf >= 40 || this.checkinForceContinue) && curBpm > 45 && curBpm < 185;
+    const confWord = this.checkinForceContinue ? 'Fair' : (rppgConf >= 68 ? 'Good' : 'Fair');
+
+    let comparison = 'Right around your usual';
+    if (curBpm > baseBpm + 4) {
+      comparison = 'A little higher than your usual';
+    } else if (curBpm < baseBpm - 4) {
+      comparison = 'A little lower than usual';
+    }
+
+    if (isSignalReliable) {
+      const roundedBpm = Math.round(curBpm);
+      const isElevated = fatigue > 60 || curBpm > baseBpm + 8;
+
+      this.ui.showCheckinResult({
+        bpm: roundedBpm,
+        range: `${roundedBpm - 2}-${roundedBpm + 2}`,
+        confidence: confWord,
+        comparison,
+        isClearReading: true,
+        onTakeReset: isElevated ? () => {
+          this.ui.openResetBreak({
+            initialBpm: roundedBpm,
+            onFinishComparison: () => this.smoothBPM.current
+          });
+        } : null
+      });
+
+      // Save to local device history
+      this.ui.saveCheckinEntry({
+        id: Date.now().toString(),
+        timestamp: Date.now(),
+        bpm: roundedBpm,
+        confidence: confWord,
+        comparison
+      });
+    } else {
+      // Inconclusive reading
+      this.ui.showCheckinResult({
+        bpm: null,
+        confidence: 'Fair',
+        isClearReading: false
+      });
+    }
+
+    // Update main UI headline calmly
     let headline = "You seem calm and focused";
     let supporting = "Check-in complete. Heart rhythm is steady and visual focus is balanced.";
     let action = "Keep going";
@@ -650,16 +809,11 @@ class PulseCamApp {
       supporting = "Check-in complete. We noticed elevated fatigue in your heart rhythm and eyes.";
       action = "Take a 2-minute break";
       state = "tired";
-    } else if (fatigue >= 35 || perclos > 13 || blinkRate < 11) {
+    } else if (fatigue >= 35 || perclos > 13) {
       headline = "Time to rest your eyes soon";
       supporting = "Check-in complete. Subtle eye fatigue detected during your check-in.";
       action = "Look away for 20 seconds";
       state = "busy";
-    } else {
-      headline = "You seem calm and focused";
-      supporting = "Check-in complete. Steady cardiovascular pulse and natural blinking pace.";
-      action = "Keep going";
-      state = "calm";
     }
 
     if (this.ui.humanStatusHeadline) {
@@ -680,6 +834,7 @@ class PulseCamApp {
 
     this.lastCheckinTime = Date.now();
     this.lastCheckinFatigue = fatigue;
+    this.checkinState = 'IDLE';
     this.updatePipState();
 
     this.ui.showToast('✨', '60-second check-in complete! Result updated.');
@@ -1245,16 +1400,15 @@ class PulseCamApp {
         this.updateDetailsNow();
       }
 
-      // 8.8. Quick Check-in Mode Loop (60s Fullscreen White Key Light Alignment Guide)
+      // 8.8. Quick Check-in Mode State Machine Loop (idle -> preparing -> measuring -> result)
       if (this.isQuickCheckin) {
-        const elapsed = now - this.checkinStartTime;
-        const progress = Math.min(1.0, elapsed / this.checkinDuration);
-        this.ui.updateCheckinProgress(progress);
-
-        const det = this.latestDetection;
-        if (elapsed < 3500 && (!det || !det.detected)) {
+        if (this.checkinState === 'PREPARING') {
+          // Phase 1: 2-second auto-exposure settling warm-up delay; first frames discarded
+          const prepElapsed = now - this.checkinStartTime;
+          this.ui.updateCheckinProgress(0);
+          this.ui.updateCheckinLivePulse(null);
           this.ui.updateCheckinAlignment({
-            faceDetected: false,
+            faceDetected: Boolean(this.latestDetection && this.latestDetection.detected),
             isCentered: false,
             isGoodDistance: false,
             isFacingScreen: false,
@@ -1262,62 +1416,132 @@ class PulseCamApp {
             guidanceText: "For a better reading, turn your screen brightness up.",
             isLightingInvalid: false
           });
-        } else if (det && det.detected && det.faceBox) {
-          const box = det.faceBox;
-          const width = this.camera.width || 640;
-          const height = this.camera.height || 480;
-          const centerX = (box.x + box.width / 2) / width;
-          const centerY = (box.y + box.height / 2) / height;
-          const faceHeightFrac = box.height / height;
-          const pose = det.headPose || { yaw: 0, pitch: 0, roll: 0 };
-          const isStill = !(this.latestMotion && this.latestMotion.isNoisy);
 
-          const isCentered = centerX >= 0.36 && centerX <= 0.64 && centerY >= 0.22 && centerY <= 0.78;
-          const isTooFar = faceHeightFrac < 0.32;
-          const isTooClose = faceHeightFrac > 0.72;
-          const isGoodDistance = !isTooFar && !isTooClose;
-          const isFacingScreen = Math.abs(pose.yaw) <= 14 && Math.abs(pose.pitch) <= 16;
+          if (prepElapsed >= this.checkinWarmupDuration) {
+            this.checkinWarmedUp = true;
+            this.checkinState = 'MEASURING';
+            this.checkinMeasurementStartTime = performance.now();
+            this.worker.postMessage({ type: 'RESET_CHECKIN' });
+          }
+        } else if (this.checkinState === 'MEASURING') {
+          const elapsed = now - this.checkinMeasurementStartTime;
+          const progress = Math.min(1.0, elapsed / this.checkinDuration);
+          this.ui.updateCheckinProgress(progress);
 
+          const det = this.latestDetection;
           let guidanceText = "Hold still";
-          if (!isCentered) {
-            guidanceText = "Center your face";
-          } else if (isTooFar) {
-            guidanceText = "Move a little closer";
-          } else if (isTooClose) {
-            guidanceText = "Move back a bit";
-          } else if (!isFacingScreen) {
-            guidanceText = "Look straight at the screen";
-          } else if (!isStill) {
-            guidanceText = "Hold still";
+          let isCentered = false;
+          let isGoodDistance = false;
+          let isFacingScreen = false;
+          let isStill = !(this.latestMotion && this.latestMotion.isNoisy);
+
+          if (det && det.detected && det.faceBox) {
+            const box = det.faceBox;
+            const width = this.camera.width || 640;
+            const height = this.camera.height || 480;
+            const centerX = (box.x + box.width / 2) / width;
+            const centerY = (box.y + box.height / 2) / height;
+            const faceHeightFrac = box.height / height;
+            const pose = det.headPose || { yaw: 0, pitch: 0, roll: 0 };
+
+            isCentered = centerX >= 0.36 && centerX <= 0.64 && centerY >= 0.22 && centerY <= 0.78;
+            const isTooFar = faceHeightFrac < 0.32;
+            const isTooClose = faceHeightFrac > 0.72;
+            isGoodDistance = !isTooFar && !isTooClose;
+            isFacingScreen = Math.abs(pose.yaw) <= 14 && Math.abs(pose.pitch) <= 16;
+
+            const faceLum = this.latestLighting ? this.latestLighting.meanLuminance : 60;
+
+            if (!isCentered) {
+              guidanceText = "Center your face";
+            } else if (isTooFar) {
+              guidanceText = "Move slightly closer";
+            } else if (isTooClose) {
+              guidanceText = "Move back a bit";
+            } else if (!isFacingScreen) {
+              guidanceText = "Look straight at the screen";
+            } else if (faceLum < 28) {
+              guidanceText = "A bit more light on your face";
+            } else if (!isStill) {
+              guidanceText = "Hold still";
+            } else {
+              guidanceText = "Hold still";
+            }
+
+            const isLightingInvalid = Boolean(!this.checkinForceContinue && this.latestLighting && !this.latestLighting.isValid);
+
+            this.ui.updateCheckinAlignment({
+              faceDetected: true,
+              isCentered,
+              isGoodDistance,
+              isFacingScreen,
+              isStill,
+              guidanceText,
+              isLightingInvalid
+            });
           } else {
-            guidanceText = "Hold still";
+            this.ui.updateCheckinAlignment({
+              faceDetected: false,
+              isCentered: false,
+              isGoodDistance: false,
+              isFacingScreen: false,
+              isStill: false,
+              guidanceText: "Center your face in the oval",
+              isLightingInvalid: Boolean(!this.checkinForceContinue && this.latestLighting && !this.latestLighting.isValid)
+            });
           }
 
-          const isLightingInvalid = Boolean(this.latestLighting && !this.latestLighting.isValid);
+          // Phase 3: Live gently updating pulse value during last 20-30s once signal stabilizes
+          if (elapsed >= 30000) {
+            const curBpm = this.smoothBPM.current;
+            if (curBpm > 45 && curBpm < 185) {
+              this.ui.updateCheckinLivePulse(curBpm);
+            } else {
+              this.ui.updateCheckinLivePulse(null);
+            }
+          } else {
+            this.ui.updateCheckinLivePulse(null);
+          }
 
-          this.ui.updateCheckinAlignment({
-            faceDetected: true,
-            isCentered,
-            isGoodDistance,
-            isFacingScreen,
-            isStill,
-            guidanceText,
-            isLightingInvalid
-          });
-        } else {
-          this.ui.updateCheckinAlignment({
-            faceDetected: false,
-            isCentered: false,
-            isGoodDistance: false,
-            isFacingScreen: false,
-            isStill: false,
-            guidanceText: "Center your face in the oval",
-            isLightingInvalid: Boolean(this.latestLighting && !this.latestLighting.isValid)
-          });
+          if (elapsed >= this.checkinDuration) {
+            this.completeQuickCheckin();
+          }
+        }
+      } else {
+        // Phase 4c: Screen-distance nudge in Background Watch
+        if (this.sessionState === 'MEASURING' && this.latestDetection && this.latestDetection.detected && this.latestDetection.faceBox) {
+          const height = this.camera.height || 480;
+          const faceHeightFrac = this.latestDetection.faceBox.height / height;
+          if (faceHeightFrac > 0.65) {
+            this.consecutiveCloseFrames = (this.consecutiveCloseFrames || 0) + 1;
+            if (this.consecutiveCloseFrames > 120 && (now - this.lastCloseNudgeTime > 300000)) {
+              this.lastCloseNudgeTime = now;
+              this.consecutiveCloseFrames = 0;
+              this.alertSystem.showAlert({
+                id: 'screen_distance_nudge',
+                text: "You're sitting quite close, try leaning back a little."
+              });
+            }
+          } else {
+            this.consecutiveCloseFrames = Math.max(0, (this.consecutiveCloseFrames || 0) - 1);
+          }
         }
 
-        if (elapsed >= this.checkinDuration) {
-          this.completeQuickCheckin();
+        // Phase 4e: Smart reminders when combined fatigue persists across background windows
+        if (this.sessionState === 'MEASURING' && combinedFatigue > 60) {
+          this.sustainedHighFatigueWindows = (this.sustainedHighFatigueWindows || 0) + dt;
+          if (this.sustainedHighFatigueWindows > 180 && (now - this.lastSmartReminderTime > 1200000)) {
+            this.lastSmartReminderTime = now;
+            this.sustainedHighFatigueWindows = 0;
+            this.alertSystem.showAlert({
+              id: 'smart_fatigue_break',
+              text: "You've been focused with high fatigue for a while. A short break could help.",
+              actionLabel: "Take a break",
+              action: () => this.ui.handleSuggestedAction('Take a 2-minute break')
+            });
+          }
+        } else {
+          this.sustainedHighFatigueWindows = Math.max(0, (this.sustainedHighFatigueWindows || 0) - dt * 0.5);
         }
       }
     }

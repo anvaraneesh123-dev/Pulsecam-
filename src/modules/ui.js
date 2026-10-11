@@ -112,6 +112,21 @@ export class UIController {
     this.checkinBrightnessPrompt = document.getElementById('checkin-brightness-prompt');
     this.settingCheckinReminder = document.getElementById('setting-checkin-reminder');
 
+    // Quick Check-in Live Pulse & Advisory Elements
+    this.checkinLivePulseContainer = document.getElementById('checkin-live-pulse-container');
+    this.checkinLivePulseVal = document.getElementById('checkin-live-pulse-val');
+    this.btnCheckinRetryLight = document.getElementById('btn-checkin-retry-light');
+    this.btnCheckinContinueAnyway = document.getElementById('btn-checkin-continue-anyway');
+
+    // New Modals: Cancelled, Result, Reset Break, Eye Rest, Daily Recap
+    this.checkinCancelledModal = document.getElementById('checkin-cancelled-modal');
+    this.checkinResultModal = document.getElementById('checkin-result-modal');
+    this.resetBreakModal = document.getElementById('reset-break-modal');
+    this.eyeRestModal = document.getElementById('eye-rest-modal');
+    this.dailyRecapModal = document.getElementById('daily-recap-modal');
+    this.btnMainCheckNow = document.getElementById('btn-main-check-now');
+    this.btnOpenDailyRecap = document.getElementById('btn-open-daily-recap');
+
     // Header Baseline Tag
     this.headerBaselineTag = document.getElementById('header-baseline-tag');
     this.headerBaselineText = document.getElementById('header-baseline-text');
@@ -1038,6 +1053,351 @@ export class UIController {
   }
 
   /**
+   * Display gently animated live pulse estimate inside oval during last 20-30s of check-in
+   */
+  updateCheckinLivePulse(bpm) {
+    if (!this.checkinLivePulseContainer || !this.checkinLivePulseVal) return;
+    if (bpm && bpm > 40 && bpm < 190) {
+      this.checkinLivePulseContainer.style.display = 'flex';
+      this.checkinLivePulseVal.textContent = Math.round(bpm);
+    } else {
+      this.checkinLivePulseContainer.style.display = 'none';
+    }
+  }
+
+  /**
+   * Show "Check-in stopped" modal on Esc or premature fullscreen exit
+   */
+  showCheckinCancelled(onStartAgain) {
+    if (this.checkinCancelledModal) {
+      this.checkinCancelledModal.style.display = 'flex';
+      const btnAgain = document.getElementById('btn-checkin-start-again');
+      if (btnAgain) {
+        btnAgain.onclick = () => {
+          this.closeCheckinCancelled();
+          if (onStartAgain) onStartAgain();
+        };
+      }
+      const btnClose = document.getElementById('btn-close-cancelled-modal');
+      if (btnClose) {
+        btnClose.onclick = () => this.closeCheckinCancelled();
+      }
+    }
+  }
+
+  closeCheckinCancelled() {
+    if (this.checkinCancelledModal) {
+      this.checkinCancelledModal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Show friendly Quick Check-in Result card (rounded BPM / range, plain label "Estimate", confidence Good/Fair)
+   */
+  showCheckinResult({ bpm, range, confidence = 'Good', comparison, isClearReading = true, onTakeReset }) {
+    if (!this.checkinResultModal) return;
+    this.checkinResultModal.style.display = 'flex';
+
+    const clearBox = document.getElementById('checkin-result-clear-box');
+    const unclearBox = document.getElementById('checkin-result-unclear-box');
+    const badgeEl = document.getElementById('checkin-result-conf-badge');
+    const headlineEl = document.getElementById('checkin-result-bpm-headline');
+    const compEl = document.getElementById('checkin-result-comparison');
+    const resetOffer = document.getElementById('checkin-result-reset-offer');
+
+    if (badgeEl) {
+      badgeEl.textContent = confidence;
+      badgeEl.className = `stamp-tag ${confidence === 'Good' ? 'good' : confidence === 'Fair' ? 'caution' : 'alert'}`;
+    }
+
+    if (isClearReading && bpm) {
+      if (clearBox) clearBox.style.display = 'block';
+      if (unclearBox) unclearBox.style.display = 'none';
+      if (headlineEl) {
+        const roundedBpm = Math.round(bpm);
+        headlineEl.textContent = `About ${roundedBpm} beats per minute`;
+      }
+      if (compEl) {
+        compEl.textContent = comparison || 'Right around your usual';
+      }
+    } else {
+      if (clearBox) clearBox.style.display = 'none';
+      if (unclearBox) unclearBox.style.display = 'block';
+    }
+
+    if (resetOffer) {
+      if (onTakeReset) {
+        resetOffer.style.display = 'block';
+        const btnReset = document.getElementById('btn-checkin-take-reset');
+        if (btnReset) {
+          btnReset.onclick = () => {
+            this.closeCheckinResult();
+            onTakeReset();
+          };
+        }
+      } else {
+        resetOffer.style.display = 'none';
+      }
+    }
+
+    const btnClose = document.getElementById('btn-close-checkin-result');
+    if (btnClose) btnClose.onclick = () => this.closeCheckinResult();
+    const btnDone = document.getElementById('btn-done-checkin-result');
+    if (btnDone) btnDone.onclick = () => this.closeCheckinResult();
+  }
+
+  closeCheckinResult() {
+    if (this.checkinResultModal) {
+      this.checkinResultModal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Reset Break with before-and-after: 2-minute breathing circle (5s in / 5s out)
+   */
+  openResetBreak({ initialBpm, onFinishComparison }) {
+    if (!this.resetBreakModal) return;
+    this.resetBreakModal.style.display = 'flex';
+
+    let remainingSeconds = 120; // 2 minutes
+    const timerEl = document.getElementById('reset-break-timer');
+    const circleEl = document.getElementById('breathing-circle');
+    const textEl = document.getElementById('breathing-text');
+    const compBox = document.getElementById('reset-comparison-result');
+    const compHeadline = document.getElementById('reset-comparison-headline');
+    const compSub = document.getElementById('reset-comparison-sub');
+
+    if (compBox) compBox.style.display = 'none';
+    if (circleEl) circleEl.style.animationPlayState = 'running';
+
+    let breathState = 'in';
+    if (textEl) textEl.textContent = 'Breathe in';
+    if (this.breathCadenceInterval) clearInterval(this.breathCadenceInterval);
+    this.breathCadenceInterval = setInterval(() => {
+      breathState = breathState === 'in' ? 'out' : 'in';
+      if (textEl) textEl.textContent = breathState === 'in' ? 'Breathe in' : 'Breathe out';
+    }, 5000);
+
+    const updateTimerDisplay = (sec) => {
+      const m = Math.floor(sec / 60).toString().padStart(2, '0');
+      const s = (sec % 60).toString().padStart(2, '0');
+      if (timerEl) timerEl.textContent = `${m}:${s}`;
+    };
+    updateTimerDisplay(remainingSeconds);
+
+    if (this.resetBreakInterval) clearInterval(this.resetBreakInterval);
+    this.resetBreakInterval = setInterval(() => {
+      remainingSeconds--;
+      updateTimerDisplay(remainingSeconds);
+      if (remainingSeconds <= 0) {
+        clearInterval(this.resetBreakInterval);
+        clearInterval(this.breathCadenceInterval);
+        this.resetBreakInterval = null;
+        this.breathCadenceInterval = null;
+
+        if (onFinishComparison) {
+          const finalBpm = onFinishComparison();
+          if (compBox) compBox.style.display = 'block';
+          if (finalBpm && initialBpm && finalBpm < initialBpm - 2) {
+            if (compHeadline) compHeadline.textContent = 'Your heart rate settled a little';
+            if (compSub) compSub.textContent = `About ${Math.round(finalBpm)} bpm after your reset.`;
+          } else {
+            if (compHeadline) compHeadline.textContent = 'Nice reset!';
+            if (compSub) compSub.textContent = 'You took two mindful minutes away from high load.';
+          }
+        }
+      }
+    }, 1000);
+
+    const btnClose = document.getElementById('btn-close-reset-break');
+    if (btnClose) btnClose.onclick = () => this.closeResetBreak();
+  }
+
+  closeResetBreak() {
+    if (this.resetBreakInterval) {
+      clearInterval(this.resetBreakInterval);
+      this.resetBreakInterval = null;
+    }
+    if (this.breathCadenceInterval) {
+      clearInterval(this.breathCadenceInterval);
+      this.breathCadenceInterval = null;
+    }
+    if (this.resetBreakModal) {
+      this.resetBreakModal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Eye Rest mode: guided 20-second "look away" screen with soft warm dim background and countdown ring
+   */
+  openEyeRest() {
+    if (!this.eyeRestModal) return;
+    this.eyeRestModal.style.display = 'flex';
+
+    let remaining = 20;
+    const countEl = document.getElementById('eye-rest-countdown');
+    const circle = document.getElementById('eye-rest-circle');
+    const totalCircumference = 2 * Math.PI * 54; // ~339.29
+
+    if (countEl) countEl.textContent = remaining;
+    if (circle) {
+      circle.style.strokeDasharray = `${totalCircumference}`;
+      circle.style.strokeDashoffset = '0';
+    }
+
+    if (this.eyeRestInterval) clearInterval(this.eyeRestInterval);
+    this.eyeRestInterval = setInterval(() => {
+      remaining--;
+      if (countEl) countEl.textContent = Math.max(0, remaining);
+      if (circle) {
+        const offset = totalCircumference * (1 - remaining / 20);
+        circle.style.strokeDashoffset = `${offset}`;
+      }
+      if (remaining <= 0) {
+        clearInterval(this.eyeRestInterval);
+        this.eyeRestInterval = null;
+        if (countEl) countEl.textContent = '✓';
+      }
+    }, 1000);
+
+    const btnClose = document.getElementById('btn-close-eye-rest');
+    if (btnClose) btnClose.onclick = () => this.closeEyeRest();
+    const btnDone = document.getElementById('btn-done-eye-rest');
+    if (btnDone) btnDone.onclick = () => this.closeEyeRest();
+  }
+
+  closeEyeRest() {
+    if (this.eyeRestInterval) {
+      clearInterval(this.eyeRestInterval);
+      this.eyeRestInterval = null;
+    }
+    if (this.eyeRestModal) {
+      this.eyeRestModal.style.display = 'none';
+    }
+  }
+
+  /**
+   * Local history management for check-ins (stored only on device)
+   */
+  getCheckinHistory() {
+    try {
+      const raw = localStorage.getItem('pulsecam_checkin_history');
+      return raw ? JSON.parse(raw) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  saveCheckinEntry(entry) {
+    try {
+      const history = this.getCheckinHistory();
+      const updated = [entry, ...history].slice(0, 50);
+      localStorage.setItem('pulsecam_checkin_history', JSON.stringify(updated));
+      return updated;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  deleteCheckinEntry(id) {
+    try {
+      const history = this.getCheckinHistory().filter(item => item.id !== id);
+      localStorage.setItem('pulsecam_checkin_history', JSON.stringify(history));
+      this.renderCheckinHistory();
+      return history;
+    } catch (_) {
+      return [];
+    }
+  }
+
+  clearCheckinHistory() {
+    try {
+      localStorage.removeItem('pulsecam_checkin_history');
+      this.renderCheckinHistory();
+    } catch (_) {}
+  }
+
+  openDailyRecap(timeSplit = { calmSec: 0, busySec: 0, tiredSec: 0 }) {
+    if (!this.dailyRecapModal) return;
+    this.dailyRecapModal.style.display = 'flex';
+
+    const history = this.getCheckinHistory();
+    const todayCount = history.filter(h => {
+      const d = new Date(h.timestamp);
+      const today = new Date();
+      return d.toDateString() === today.toDateString();
+    }).length;
+
+    const headlineEl = document.getElementById('daily-recap-headline');
+    const insightEl = document.getElementById('daily-recap-insight');
+
+    if (headlineEl) {
+      headlineEl.textContent = `Today: ${todayCount} check-in${todayCount === 1 ? '' : 's'}, rhythm balanced.`;
+    }
+    if (insightEl) {
+      if (history.length >= 3) {
+        insightEl.textContent = 'Your calm focus tends to peak during morning and midday sessions.';
+      } else {
+        insightEl.textContent = 'PulseCam learns your best focus patterns as you complete check-ins throughout the week.';
+      }
+    }
+
+    this.renderCheckinHistory();
+
+    const btnClear = document.getElementById('btn-clear-checkin-history');
+    if (btnClear) {
+      btnClear.onclick = () => this.clearCheckinHistory();
+    }
+    const btnClose = document.getElementById('btn-close-daily-recap');
+    if (btnClose) {
+      btnClose.onclick = () => this.closeDailyRecap();
+    }
+  }
+
+  renderCheckinHistory() {
+    const listEl = document.getElementById('daily-recap-history-list');
+    if (!listEl) return;
+    const history = this.getCheckinHistory();
+
+    if (history.length === 0) {
+      listEl.innerHTML = `
+        <div style="padding: 16px; text-align: center; color: var(--text-muted); font-size: 0.88rem;">
+          No check-ins recorded yet. Tap "Check now" to start your first reading.
+        </div>
+      `;
+      return;
+    }
+
+    listEl.innerHTML = history.map(item => `
+      <div class="checkin-history-item" style="display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 6px;">
+        <div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <strong style="font-size: 0.95rem; color: var(--text);">${item.bpm ? `About ${item.bpm} bpm` : 'Inconclusive reading'}</strong>
+            <span class="stamp-tag ${item.confidence === 'Good' ? 'good' : 'caution'}" style="font-size: 0.72rem; padding: 2px 6px;">${item.confidence || 'Estimate'}</span>
+          </div>
+          <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 3px;">
+            ${item.comparison || 'Right around your usual'} • ${new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        </div>
+        <button type="button" class="btn-delete-history" data-id="${item.id}" title="Delete reading" style="background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; padding: 4px;">✕</button>
+      </div>
+    `).join('');
+
+    listEl.querySelectorAll('.btn-delete-history').forEach(btn => {
+      btn.onclick = (e) => {
+        const id = e.currentTarget.getAttribute('data-id');
+        this.deleteCheckinEntry(id);
+      };
+    });
+  }
+
+  closeDailyRecap() {
+    if (this.dailyRecapModal) {
+      this.dailyRecapModal.style.display = 'none';
+    }
+  }
+
+  /**
    * Populate live technical signals for the curious user
    */
   updateDetailsPanel(data) {
@@ -1128,22 +1488,56 @@ export class UIController {
       if (this.detailsCompDurVal) this.detailsCompDurVal.textContent = `+${comps.sessionDuration?.addedPoints || 0.0} pts`;
       if (this.detailsCompDurDesc && comps.sessionDuration?.detail) this.detailsCompDurDesc.textContent = comps.sessionDuration.detail;
     }
+
+    // 6. Section 6: Quick Check-in & Optical Diagnostics (Phase 1 Debugging & Verification)
+    const diagReadyState = document.getElementById('details-diag-readystate');
+    if (diagReadyState) {
+      const rs = data.cameraVideoReadyState !== undefined ? data.cameraVideoReadyState : (window.__pulsecam_app?.videoEl?.readyState ?? 4);
+      const rsName = rs === 4 ? '4 (HAVE_ENOUGH_DATA)' : rs === 3 ? '3 (HAVE_FUTURE_DATA)' : rs === 2 ? '2 (HAVE_CURRENT_DATA)' : `${rs} (INITIALIZING)`;
+      diagReadyState.textContent = rsName;
+    }
+    const diagDimensions = document.getElementById('details-diag-dimensions');
+    if (diagDimensions) {
+      const w = data.frameWidth || window.__pulsecam_app?.camera?.width || 640;
+      const h = data.frameHeight || window.__pulsecam_app?.camera?.height || 480;
+      diagDimensions.textContent = `${w} × ${h} px`;
+    }
+    const diagLuminance = document.getElementById('details-diag-luminance');
+    if (diagLuminance) {
+      const lum = data.lighting?.meanLuminance !== undefined ? Math.round(data.lighting.meanLuminance) : '--';
+      diagLuminance.textContent = `${lum} lux`;
+    }
+    const diagThreshold = document.getElementById('details-diag-threshold');
+    if (diagThreshold) {
+      const isCheckin = window.__pulsecam_app?.isQuickCheckin || false;
+      diagThreshold.textContent = isCheckin ? '22 lux (Screen Light Key)' : '45 lux (Ambient Room)';
+    }
+    const diagWhiteScreen = document.getElementById('details-diag-white-screen');
+    if (diagWhiteScreen) {
+      const isCheckin = window.__pulsecam_app?.isQuickCheckin || false;
+      diagWhiteScreen.textContent = isCheckin ? 'Visible (Full Overlay)' : 'Hidden (Standard Mode)';
+    }
+    const diagExposure = document.getElementById('details-diag-exposure');
+    if (diagExposure) {
+      const isWarmedUp = window.__pulsecam_app?.checkinWarmedUp ?? true;
+      diagExposure.textContent = isWarmedUp ? 'Settled (>2s Warm-up)' : 'Warming up (<2s)';
+    }
+    const diagBadge = document.getElementById('details-checkin-diag-badge');
+    if (diagBadge) {
+      const isCheckin = window.__pulsecam_app?.isQuickCheckin || false;
+      diagBadge.textContent = isCheckin ? 'Check-in Active' : 'Camera Stream Active';
+      diagBadge.className = `stamp-tag ${isCheckin ? 'good' : ''}`;
+    }
   }
 
   handleSuggestedAction(action) {
     if (action === 'Look away for 20 seconds') {
-      this.openActionModal({
-        title: 'Look away for 20 seconds',
-        subtitle: 'Rest your optical focus with the 20-20-20 principle.',
-        seconds: 20,
-        prompt: 'Look at an object at least 20 feet away to relax your eye focusing muscles.'
-      });
+      this.openEyeRest();
     } else if (action === 'Take a 2-minute break') {
-      this.openActionModal({
-        title: 'Take a 2-minute break',
-        subtitle: 'Step back, breathe slowly, and let your body and mind reset.',
-        seconds: 120,
-        prompt: 'Step away from your screen. Relax your shoulders and take slow, deep breaths.'
+      const curBpm = window.__pulsecam_app?.smoothBPM?.current;
+      this.openResetBreak({
+        initialBpm: curBpm,
+        onFinishComparison: () => window.__pulsecam_app?.smoothBPM?.current
       });
     } else if (action === 'Stretch') {
       this.showToast('🧘', 'Posture reset: roll your shoulders back and gently tilt your head.');
