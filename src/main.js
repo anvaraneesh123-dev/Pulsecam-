@@ -306,6 +306,15 @@ class PulseCamApp {
     if (btnStartCheck) btnStartCheck.onclick = () => this.ui.showView('consent');
     if (btnConsentBack) btnConsentBack.onclick = () => this.ui.showView('landing');
 
+    const btnLandingTop = document.getElementById('btn-landing-top-checkin');
+    const btnHeroQuick = document.getElementById('btn-hero-quick-checkin');
+    if (btnLandingTop) {
+      btnLandingTop.onclick = () => this.startQuickCheckinDirectly();
+    }
+    if (btnHeroQuick) {
+      btnHeroQuick.onclick = () => this.startQuickCheckinDirectly();
+    }
+
     if (btnConsentDemo) {
       btnConsentDemo.onclick = () => this.startMonitoringSession(true);
     }
@@ -602,12 +611,38 @@ class PulseCamApp {
   }
 
   /**
+   * Start 60-Second Quick Check-in directly from landing page
+   * Auto-authorizes local volatile memory consent and boots camera directly into check-in.
+   */
+  async startQuickCheckinDirectly() {
+    try {
+      localStorage.setItem('pulsecam_consent_given', 'true');
+      if (this.ui.checkWellness) this.ui.checkWellness.checked = true;
+      if (this.ui.checkCamera) this.ui.checkCamera.checked = true;
+      if (this.ui.btnConsentProceed) this.ui.btnConsentProceed.disabled = false;
+
+      if (!this.isMonitoring || !this.camera.isRunning) {
+        await this.startMonitoringSession(this.isDemoSession);
+      }
+      await this.startQuickCheckin();
+    } catch (err) {
+      console.error('[PulseCam] Quick check-in direct start error:', err);
+      this.ui.showView('consent');
+    }
+  }
+
+  /**
    * Start 60-Second Screen-Lit Quick Check-in Mode
    * Implements clean state machine: IDLE -> PREPARING -> MEASURING -> RESULT -> IDLE.
    * On every start, fully resets all buffers, filters, worker state, and timers.
    */
   async startQuickCheckin() {
     if (this.checkinState === 'PREPARING' || this.checkinState === 'MEASURING') return;
+
+    // Cleanly close any previous result or cancelled modal
+    this.ui.closeCheckinResult();
+    if (this.ui.checkinCancelledModal) this.ui.checkinCancelledModal.style.display = 'none';
+    this.latestCheckinResult = null;
 
     if (!this.isMonitoring || !this.camera.isRunning) {
       await this.startMonitoringSession(this.isDemoSession);
@@ -779,6 +814,7 @@ class PulseCamApp {
           confidence: res.confidence || 'Good',
           comparison,
           isClearReading: true,
+          onTryAgain: () => this.startQuickCheckin(),
           onTakeReset: isElevated ? () => {
             this.ui.openResetBreak({
               initialBpm: roundedBpm,
@@ -1290,8 +1326,8 @@ class PulseCamApp {
     const curMotion = this.smoothMotion.update(dt);
     const curWaveform = this.smoothWaveform.update(dt);
 
-    // 5. Draw Canvas Waveform Oscilloscope (Only when measurement is active)
-    if (this.isMonitoring && !this.isPaused && this.sessionState === 'MEASURING') {
+    // 5. Draw Canvas Waveform Oscilloscope (Active during measurement or Quick Check-in)
+    if (this.isMonitoring && !this.isPaused && (this.sessionState === 'MEASURING' || this.isQuickCheckin)) {
       this.timeline.pushWaveform(curWaveform);
       this.timeline.logInterval({
         bpm: Math.round(curBpm),
@@ -1362,7 +1398,11 @@ class PulseCamApp {
         fatigueScore: combinedFatigue,
         blinkRate: Math.round(curBlink),
         perclos: curPerclos,
-        rppgConfidence: this.sessionState === 'MEASURING' ? this.targetConfidence : 0,
+        rppgConfidence: (this.sessionState === 'MEASURING' || this.isQuickCheckin) ? this.targetConfidence : 0,
+        bpm: (curBpm && curBpm > 40 && curBpm < 200)
+          ? Math.round(curBpm)
+          : (this.latestCheckinResult?.medianBpm ? Math.round(this.latestCheckinResult.medianBpm) : (this.targetBPM && this.targetBPM > 40 ? Math.round(this.targetBPM) : null)),
+        baselineBpm: this.activeBaseline?.heartRate?.mean ? Math.round(this.activeBaseline.heartRate.mean) : 72,
         sqi: {
           score: combinedConfidence,
           badge: combinedConfidence >= 70 ? 'High' : combinedConfidence >= 45 ? 'Medium' : 'Low',

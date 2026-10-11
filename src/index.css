@@ -3209,6 +3209,117 @@ p {
   background: rgba(185, 28, 28, 0.08);
 }
 
+/* ==========================================================================
+   LIVE TELEMETRY & HEART RATE VITALS STRIP (Editorial Dashboard Vitals)
+   ========================================================================== */
+.telemetry-vitals-strip {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1.35fr;
+  gap: 1.5rem;
+  margin-bottom: 1.8rem;
+}
+
+@media (max-width: 1020px) {
+  .telemetry-vitals-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vital-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 1.4rem 1.6rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 2px 12px rgba(43, 29, 20, 0.02);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.vital-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(43, 29, 20, 0.04);
+}
+
+.vital-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.vital-label {
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.vital-value-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 0.6rem;
+}
+
+.vital-heart-icon {
+  color: var(--accent); /* #9B2C2C / Garnet Red */
+  display: inline-flex;
+  align-items: center;
+  transition: transform 0.15s ease;
+}
+
+.vital-heart-icon.beating {
+  animation: heartThump 0.9s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+}
+
+@keyframes heartThump {
+  0% { transform: scale(1); }
+  18% { transform: scale(1.22); }
+  32% { transform: scale(1.02); }
+  46% { transform: scale(1.15); }
+  62% { transform: scale(1); }
+  100% { transform: scale(1); }
+}
+
+.vital-eye-icon {
+  color: var(--good); /* #2F6B4F / Forest Green */
+  display: inline-flex;
+  align-items: center;
+}
+
+.vital-num {
+  font-family: var(--font-heading);
+  font-size: 2.8rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1;
+}
+
+.vital-unit {
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.vital-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 0.6rem;
+  border-top: 1px dashed var(--line);
+}
+
+.vital-subtext {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+
 
 
 

@@ -5,12 +5,15 @@
  */
 
 export class TimelineManager {
-  constructor(oscilloscopeCanvasId, trendCanvasId = null) {
+  constructor(oscilloscopeCanvasId, trendCanvasId = null, dashCanvasId = 'dash-pulse-canvas') {
     this.oscCanvas = document.getElementById(oscilloscopeCanvasId);
     this.oscCtx = this.oscCanvas ? this.oscCanvas.getContext('2d') : null;
 
     this.trendCanvas = trendCanvasId ? document.getElementById(trendCanvasId) : null;
     this.trendCtx = this.trendCanvas ? this.trendCanvas.getContext('2d') : null;
+
+    this.dashCanvas = dashCanvasId ? document.getElementById(dashCanvasId) : null;
+    this.dashCtx = this.dashCanvas ? this.dashCanvas.getContext('2d') : null;
 
     // Buffer for high-frequency PPG waveform (150 points)
     this.waveformHistory = new Array(120).fill(0);
@@ -63,17 +66,21 @@ export class TimelineManager {
    * Render handcrafted live PPG pulse wave as a clean physiological kymograph
    */
   renderOscilloscope() {
-    if (!this.oscCtx || !this.oscCanvas) return;
-    const ctx = this.oscCtx;
-    const w = this.oscCanvas.width;
-    const h = this.oscCanvas.height;
+    this.drawWaveformToContext(this.oscCtx, this.oscCanvas, false);
+    this.drawWaveformToContext(this.dashCtx, this.dashCanvas, true);
+  }
 
-    // Archival paper white surface
-    ctx.fillStyle = '#FFFFFF';
+  drawWaveformToContext(ctx, canvas, isDark = false) {
+    if (!ctx || !canvas) return;
+    const w = canvas.width;
+    const h = canvas.height;
+
+    // Background fill
+    ctx.fillStyle = isDark ? '#1C1917' : '#FFFFFF';
     ctx.fillRect(0, 0, w, h);
 
-    // Fine hairline grid lines in --line (#E2D6C6)
-    ctx.strokeStyle = '#E2D6C6';
+    // Fine hairline grid lines
+    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : '#E2D6C6';
     ctx.lineWidth = 1;
     for (let x = 0; x < w; x += 40) {
       ctx.beginPath();
@@ -81,7 +88,7 @@ export class TimelineManager {
       ctx.lineTo(x, h);
       ctx.stroke();
     }
-    for (let y = 0; y < h; y += 22) {
+    for (let y = 0; y < h; y += 20) {
       ctx.beginPath();
       ctx.moveTo(0, y);
       ctx.lineTo(w, y);
@@ -89,7 +96,7 @@ export class TimelineManager {
     }
 
     // Midline (subtle dashed hairline)
-    ctx.strokeStyle = '#D5C7B5';
+    ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.10)' : '#D5C7B5';
     ctx.setLineDash([3, 4]);
     ctx.beginPath();
     ctx.moveTo(0, h / 2);
@@ -110,7 +117,7 @@ export class TimelineManager {
     const range = Math.max(0.2, max - min);
     const stepX = w / (data.length - 1);
 
-    // Draw clean arterial pulse wave in --accent (#9B2C2C)
+    // Draw clean arterial pulse wave in garnet accent
     ctx.save();
     ctx.beginPath();
 
@@ -130,13 +137,13 @@ export class TimelineManager {
       }
     }
 
-    ctx.strokeStyle = '#9B2C2C';
-    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = isDark ? '#c24b3e' : '#9B2C2C';
+    ctx.lineWidth = 1.8;
     ctx.stroke();
 
     // Pulse head terminal dot
     const lastY = h - (((data[data.length - 1] - min) / range) * (h * 0.72) + h * 0.14);
-    ctx.fillStyle = '#9B2C2C';
+    ctx.fillStyle = isDark ? '#c24b3e' : '#9B2C2C';
     ctx.beginPath();
     ctx.arc(w - 2, lastY, 3, 0, Math.PI * 2);
     ctx.fill();

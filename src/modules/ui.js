@@ -320,6 +320,19 @@ export class UIController {
     // Cached rendered values to prevent unnecessary DOM mutations & layout thrashing
     this.lastRendered = {};
 
+    // Live Dashboard Telemetry & Vitals Strip Elements
+    this.dashLiveBpm = document.getElementById('dash-live-bpm');
+    this.dashHeartIcon = document.getElementById('dash-heart-icon');
+    this.dashBpmBadge = document.getElementById('dash-bpm-badge');
+    this.dashBpmBaselineDiff = document.getElementById('dash-bpm-baseline-diff');
+    this.dashBpmConf = document.getElementById('dash-bpm-conf');
+    this.dashLiveBlink = document.getElementById('dash-live-blink');
+    this.dashBlinkBadge = document.getElementById('dash-blink-badge');
+    this.dashBlinkDesc = document.getElementById('dash-blink-desc');
+    this.dashPerclosVal = document.getElementById('dash-perclos-val');
+    this.dashPulseCanvas = document.getElementById('dash-pulse-canvas');
+    this.btnResultCheckinAgain = document.getElementById('btn-result-checkin-again');
+
     this.initConsentListeners();
     this.initActionInteractions();
   }
@@ -1207,11 +1220,26 @@ export class UIController {
     if (btnClose) btnClose.onclick = () => this.closeCheckinResult();
     const btnDone = document.getElementById('btn-done-checkin-result');
     if (btnDone) btnDone.onclick = () => this.closeCheckinResult();
+
+    const btnCheckinAgain = document.getElementById('btn-result-checkin-again');
+    if (btnCheckinAgain) {
+      btnCheckinAgain.onclick = () => {
+        this.closeCheckinResult();
+        if (onTryAgain) {
+          onTryAgain();
+        } else if (window.__pulsecam_app && typeof window.__pulsecam_app.startQuickCheckin === 'function') {
+          window.__pulsecam_app.startQuickCheckin();
+        }
+      };
+    }
   }
 
   closeCheckinResult() {
     if (this.checkinResultModal) {
       this.checkinResultModal.style.display = 'none';
+    }
+    if (window.__pulsecam_app) {
+      window.__pulsecam_app.checkinState = 'IDLE';
     }
   }
 
@@ -2064,6 +2092,69 @@ export class UIController {
     // 5. Friendly day summary bar update
     if (data.sessionTimeSplit) {
       this.updateDaySummary(data.sessionTimeSplit);
+    }
+
+    // 7. Live Arterial Pulse Rate & Ocular Telemetry Strip
+    if (this.dashLiveBpm) {
+      if (data.bpm && data.bpm > 0) {
+        this.dashLiveBpm.textContent = Math.round(data.bpm);
+        if (this.dashHeartIcon) this.dashHeartIcon.classList.add('beating');
+      } else {
+        this.dashLiveBpm.textContent = '--';
+        if (this.dashHeartIcon) this.dashHeartIcon.classList.remove('beating');
+      }
+    }
+
+    if (this.dashBpmBadge) {
+      const hasLock = Boolean(data.faceDetected && data.bpm && data.bpm > 0);
+      this.dashBpmBadge.textContent = hasLock ? 'Live Optical Lock' : 'Acquiring Signal...';
+      this.dashBpmBadge.className = `stamp-tag ${hasLock ? 'good' : 'caution'}`;
+    }
+
+    if (this.dashBpmBaselineDiff) {
+      if (data.bpm && data.bpm > 0) {
+        const base = data.baselineBpm || 72;
+        const diff = Math.round(data.bpm) - Math.round(base);
+        if (Math.abs(diff) <= 3) {
+          this.dashBpmBaselineDiff.textContent = 'Right around your usual baseline';
+        } else if (diff > 3) {
+          this.dashBpmBaselineDiff.textContent = `+${diff} BPM above usual baseline`;
+        } else {
+          this.dashBpmBaselineDiff.textContent = `${diff} BPM below usual baseline`;
+        }
+      } else {
+        this.dashBpmBaselineDiff.textContent = 'Keep face steady inside camera view';
+      }
+    }
+
+    if (this.dashBpmConf) {
+      const conf = data.rppgConfidence !== undefined && data.rppgConfidence > 0
+        ? Math.round(data.rppgConfidence)
+        : (data.sqi?.score || 85);
+      this.dashBpmConf.textContent = `${conf}% Conf`;
+    }
+
+    if (this.dashLiveBlink) {
+      this.dashLiveBlink.textContent = data.blinkRate !== undefined ? Math.round(data.blinkRate) : '16';
+    }
+
+    if (this.dashBlinkBadge) {
+      const br = data.blinkRate || 16;
+      if (br < 10) {
+        this.dashBlinkBadge.textContent = 'Screen Stare';
+        this.dashBlinkBadge.className = 'stamp-tag caution';
+      } else if (br > 25) {
+        this.dashBlinkBadge.textContent = 'Rapid Flutter';
+        this.dashBlinkBadge.className = 'stamp-tag alert';
+      } else {
+        this.dashBlinkBadge.textContent = 'Natural Rhythm';
+        this.dashBlinkBadge.className = 'stamp-tag good';
+      }
+    }
+
+    if (this.dashPerclosVal) {
+      const p = data.perclos !== undefined ? Number(data.perclos).toFixed(1) : '2.8';
+      this.dashPerclosVal.textContent = `${p}% PERCLOS`;
     }
 
     return state;

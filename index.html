@@ -44,6 +44,9 @@
           <div class="masthead-topbar">
             <span>Vol. I — Dispatch 01 / Ed. 2026</span>
             <span>Remote Optical Physiology • In-Browser Sandboxing</span>
+            <button id="btn-landing-top-checkin" class="stamp-tag accent" style="cursor: pointer; background: rgba(47, 107, 79, 0.12); border-color: var(--good); color: var(--good); font-weight: 600;" type="button" title="Start immediate 60-second screen-lit check-in">
+              ⚡ Quick Check-in (60s)
+            </button>
             <span class="stamp-tag">Volatile RAM Only</span>
           </div>
 
@@ -72,13 +75,14 @@
                 By measuring subtle diffuse optical absorption across capillary beds in the forehead, PulseCam isolates cardiac pulsatile variations in real time. Video frames exist exclusively in browser RAM for mere milliseconds—never recorded, never saved, and never transmitted across any network.
               </p>
               <div class="hero-cta-group">
-                <button id="btn-start-check" class="btn btn-primary">
+                <button id="btn-hero-quick-checkin" class="btn btn-primary" style="background: var(--good); border-color: var(--good);" type="button">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  Start Quick Check-in (60s)
+                </button>
+                <button id="btn-start-check" class="btn btn-secondary" type="button">
                   Begin Wellness Evaluation
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                 </button>
-                <a href="#features-anchor" class="btn btn-secondary">
-                  Examine Architecture
-                </a>
               </div>
             </div>
 
@@ -407,6 +411,66 @@
                 <button id="btn-recheck-lighting" class="btn btn-secondary btn-sm">
                   Check lighting again
                 </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Live Telemetry & Heart Rate Vitals Strip -->
+          <div class="telemetry-vitals-strip">
+            <!-- Heart Rate Vital Card -->
+            <div class="vital-card">
+              <div class="vital-card-header">
+                <span class="vital-label">Arterial Pulse Rate</span>
+                <span id="dash-bpm-badge" class="stamp-tag good">Live Optical Lock</span>
+              </div>
+              <div class="vital-card-body">
+                <div class="vital-value-row">
+                  <span class="vital-heart-icon beating" id="dash-heart-icon">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+                    </svg>
+                  </span>
+                  <span id="dash-live-bpm" class="vital-num">72</span>
+                  <span class="vital-unit">BPM</span>
+                </div>
+                <div class="vital-meta-row">
+                  <span id="dash-bpm-baseline-diff" class="vital-subtext">Right around your usual baseline</span>
+                  <span id="dash-bpm-conf" class="stamp-tag mono">94% Conf</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Ocular Cadence Card -->
+            <div class="vital-card">
+              <div class="vital-card-header">
+                <span class="vital-label">Ocular Cadence</span>
+                <span id="dash-blink-badge" class="stamp-tag">Natural Rhythm</span>
+              </div>
+              <div class="vital-card-body">
+                <div class="vital-value-row">
+                  <span class="vital-eye-icon">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                    </svg>
+                  </span>
+                  <span id="dash-live-blink" class="vital-num">16</span>
+                  <span class="vital-unit">/ min</span>
+                </div>
+                <div class="vital-meta-row">
+                  <span id="dash-blink-desc" class="vital-subtext">Resting eye blink frequency</span>
+                  <span id="dash-perclos-val" class="stamp-tag mono">2.8% PERCLOS</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Optical Pulse Waveform Live Canvas -->
+            <div class="vital-card vital-card-wide">
+              <div class="vital-card-header">
+                <span class="vital-label">Live Arterial Photoplethysmogram</span>
+                <span class="stamp-tag accent">Sub-Capillary Waveform</span>
+              </div>
+              <div class="vital-card-body">
+                <canvas id="dash-pulse-canvas" width="460" height="60" style="width: 100%; height: 60px; display: block; border-radius: 6px; background: var(--bg);"></canvas>
               </div>
             </div>
           </div>
@@ -1343,7 +1407,12 @@
             <span>PulseCam is a wellness assistant, not a medical diagnostic tool.</span>
             <span>Your video never leaves your device.</span>
           </div>
-          <button id="btn-done-checkin-result" class="btn btn-primary btn-sm" type="button">Done</button>
+          <div style="display: flex; gap: 8px;">
+            <button id="btn-result-checkin-again" class="btn btn-secondary btn-sm" type="button" style="color: var(--good); border-color: var(--good); font-weight: 500;">
+              Check in again
+            </button>
+            <button id="btn-done-checkin-result" class="btn btn-primary btn-sm" type="button">Done</button>
+          </div>
         </div>
       </div>
     </div>
